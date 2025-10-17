@@ -38,7 +38,7 @@ static uint8_t can1_terminator_enabled = 0;
 static uint8_t can2_terminator_enabled = 0;
 
 
-void FDCAN::receive_message(FDCANChannel channel) {
+int8_t FDCAN::receive_message(FDCANChannel channel, fdcan_message_t msg) {
     FDCAN_HandleTypeDef *hfdcan = (channel == FDCANChannel::FDCAN1) ? &hfdcan1 : &hfdcan2;
     FDCAN_RxHeaderTypeDef rx_header;
     uint8_t rx_data[8];
@@ -49,11 +49,11 @@ void FDCAN::receive_message(FDCANChannel channel) {
         // Check if we have space in the queue
         uint8_t next_head = (can_rx_queue_head + 1) % CAN_MAX_MESSAGES;
         if (next_head != can_rx_queue_tail) {
-            fdcan_message_t *msg = &can_rx_queue[can_rx_queue_head];
-            msg->id = rx_header.Identifier;
-            msg->dlc = rx_header.DataLength;
-            msg->channel = (uint8_t)channel;
-            memcpy(msg->data, rx_data, 8);
+            // fdcan_message_t *msg = &can_rx_queue[can_rx_queue_head];
+            msg.id = rx_header.Identifier;
+            msg.dlc = rx_header.DataLength;
+            msg.channel = (uint8_t)channel;
+            memcpy(msg.data, rx_data, 8);
             can_rx_queue_head = next_head;
             if (channel == FDCANChannel::FDCAN1) {
                 can1_rx_count++;
@@ -72,11 +72,10 @@ void FDCAN::receive_message(FDCANChannel channel) {
         // Check if we have space in the queue
         uint8_t next_head = (can_rx_queue_head + 1) % CAN_MAX_MESSAGES;
         if (next_head != can_rx_queue_tail) {
-            fdcan_message_t *msg = &can_rx_queue[can_rx_queue_head];
-            msg->id = rx_header.Identifier;
-            msg->dlc = rx_header.DataLength;
-            msg->channel = (uint8_t)channel;
-            memcpy(msg->data, rx_data, 8);
+            msg.id = rx_header.Identifier;
+            msg.dlc = rx_header.DataLength;
+            msg.channel = (uint8_t)channel;
+            memcpy(msg.data, rx_data, 8);
             can_rx_queue_head = next_head;
             can2_rx_count++;
         }
@@ -113,69 +112,65 @@ void FDCAN::send_message(const fdcan_message_t &msg) {
 /* HAL FD CAN Callbacks */
 
 /* CAN Interrupt Callbacks */
-void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
-{
-  // Debug: Toggle green LED to indicate interrupt was called
-  HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_14);
+void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs) {
+    // Debug: Toggle green LED to indicate interrupt was called
+    HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_14);
 
-  uint8_t channel = 1;
-  if (hfdcan == &hfdcan2) {
-    channel = 2;
-  }
-  if((RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) != RESET)
-  {
-    /* Retrieve Rx messages from RX FIFO0 */
-      receive_can_message(hfdcan,channel);  // Channel 1 for FDCAN1
-  }
-  if((RxFifo0ITs & FDCAN_IT_RX_FIFO1_NEW_MESSAGE) != RESET)
-  {
-    /* Retrieve Rx messages from RX FIFO0 */
-    receive_can_message(hfdcan, channel);  // Channel 2 for FDCAN2
-  }
+    uint8_t channel = 1;
+    if (hfdcan == &hfdcan2) {
+        channel = 2;
+    }
+    if((RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) != RESET)
+    {
+        /* Retrieve Rx messages from RX FIFO0 */
+        receive_can_message(hfdcan,channel);  // Channel 1 for FDCAN1
+    }
+    if((RxFifo0ITs & FDCAN_IT_RX_FIFO1_NEW_MESSAGE) != RESET)
+    {
+        /* Retrieve Rx messages from RX FIFO0 */
+        receive_can_message(hfdcan, channel);  // Channel 2 for FDCAN2
+    }
 }
 
-void HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo1ITs)
-{
-  // Debug: Toggle green LED to indicate interrupt was called
-  HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_14);
-  uint8_t channel = 1;
-  if (hfdcan == &hfdcan2) {
-    channel = 2;
-  }
-  if((RxFifo1ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) != RESET)
-  {
-    /* Retrieve Rx messages from RX FIFO0 */
-      receive_can_message(hfdcan, channel + 2);  // Channel 1 for FDCAN1
-  }
-  if((RxFifo1ITs & FDCAN_IT_RX_FIFO1_NEW_MESSAGE) != RESET)
-  {
-    /* Retrieve Rx messages from RX FIFO0 */
-    receive_can_message(hfdcan, channel+2);  // Channel 2 for FDCAN1
-  }
+void HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo1ITs) {
+    // Debug: Toggle green LED to indicate interrupt was called
+    HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_14);
+    uint8_t channel = 1;
+    if (hfdcan == &hfdcan2) {
+        channel = 2;
+    }
+    if((RxFifo1ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) != RESET)
+    {
+        /* Retrieve Rx messages from RX FIFO0 */
+        receive_can_message(hfdcan, channel + 2);  // Channel 1 for FDCAN1
+    }
+    if((RxFifo1ITs & FDCAN_IT_RX_FIFO1_NEW_MESSAGE) != RESET)
+    {
+        /* Retrieve Rx messages from RX FIFO0 */
+        receive_can_message(hfdcan, channel+2);  // Channel 2 for FDCAN1
+    }
 }
 
-void HAL_FDCAN_TxEventFifoCallback(FDCAN_HandleTypeDef *hfdcan, uint32_t TxEventFifoITs)
-{
+void HAL_FDCAN_TxEventFifoCallback(FDCAN_HandleTypeDef *hfdcan, uint32_t TxEventFifoITs) {
     // Optional: Handle transmission events
     // UNUSED(hfdcan);
     uint8_t error_msg[19];
 
     if (hfdcan == &hfdcan1) {
-      // Toggle red LED to indicate CAN1 error
-      HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
-      // Send error message via USB
-      memcpy(error_msg, "Retransmit: CAN1\r\n", sizeof(error_msg));
+        // Toggle red LED to indicate CAN1 error
+        HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
+        // Send error message via USB
+        memcpy(error_msg, "Retransmit: CAN1\r\n", sizeof(error_msg));
     } else if (hfdcan == &hfdcan2) {
-      // Toggle red LED to indicate CAN2 error
-      HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
-      // Send error message via USB
-      memcpy(error_msg, "Retransmit: CAN2\r\n", sizeof(error_msg));
+        // Toggle red LED to indicate CAN2 error
+        HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
+        // Send error message via USB
+        memcpy(error_msg, "Retransmit: CAN2\r\n", sizeof(error_msg));
     }
     CDC_Transmit_FS(error_msg, sizeof(error_msg) - 1);
 }
 
-void HAL_FDCAN_ErrorCallback(FDCAN_HandleTypeDef *hfdcan)
-{
+void HAL_FDCAN_ErrorCallback(FDCAN_HandleTypeDef *hfdcan) {
     // Handle CAN errors
     if (hfdcan == &hfdcan1) {
         // Toggle red LED to indicate CAN1 error
@@ -191,6 +186,7 @@ void HAL_FDCAN_ErrorCallback(FDCAN_HandleTypeDef *hfdcan)
         CDC_Transmit_FS(error_msg, sizeof(error_msg) - 1);
     }
     uint8_t error_msg[19];
-    snprintf((char*)error_msg, sizeof(error_msg), "CAN Error %d\r\n", (int)(hfdcan->ErrorCode));
+    snprintf(reinterpret_cast<char*>(error_msg), sizeof(error_msg),
+                                "CAN Error %d\r\n", static_cast<int>(hfdcan->ErrorCode));
     CDC_Transmit_FS(error_msg, sizeof(error_msg) - 1);
 }

@@ -27,7 +27,7 @@ enum class FDCANChannel: uint8_t {
 };
 
 class FDCAN {
-    void receive_message(FDCANChannel channel);
+    int8_t receive_message(FDCANChannel channel, fdcan_message_t msg);
     void send_message(const fdcan_message_t &msg);
  private:
     static MessagesCircularBuffer<fdcan_message_t> messages[2];
