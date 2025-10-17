@@ -1,0 +1,53 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+    {
+        "name": "Simple Cortex Debug",
+        "cwd": "${workspaceFolder}",
+        "executable": "stm_ioc/build/stm_ioc.elf",
+        "request": "launch",
+        "type": "cortex-debug",
+        "runToEntryPoint": "main",
+        "showDevDebugOutput": "raw",
+        "servertype": "openocd", // Or "jlink"
+        "configFiles": [
+                "interface/stlink.cfg", // Or your interface config
+                "target/stm32g0x.cfg"    // Or your target config
+            ],
+    },
+    {
+        "name": "STM32G0B1 Debug",
+        "cwd": "${workspaceFolder}",
+        "executable": "stm_ioc/build/stm_ioc.elf",
+        "request": "launch",
+        "type": "cortex-debug",
+        "runToEntryPoint": "main",
+        "showDevDebugOutput": "raw",
+        "servertype": "openocd",
+        "configFiles": [
+            "${workspaceFolder}/stm_ioc/openocd.cfg"
+        ],
+        "postLaunchCommands": [
+            "monitor reset",
+            "monitor sleep 1000",
+            "monitor halt",
+            "monitor program ${workspaceFolder}/stm_ioc/build/stm_ioc.elf verify",
+            "monitor reset init"
+        ],
+        "preLaunchCommands": [
+            "monitor reset",
+            "monitor sleep 1000",
+            "monitor halt"
+        ],
+        "postRestartCommands": [
+            "monitor reset init"
+        ],
+        "openOCDLaunchCommands": [
+            "adapter speed 1800"
+        ]
+    }
+    ]
+}
