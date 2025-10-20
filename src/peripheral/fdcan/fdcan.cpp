@@ -6,17 +6,15 @@
 
 
 #include <cstdio>
-#include "STM32G0xx_HAL_Driver/Inc/stm32g0xx_hal_fdcan.h"
-#include "peripheral/fdcan/fdcan.hpp"
-#include "Inc/fdcan.h"
-#include "App/usbd_cdc_if.h"
+#include "fdcan.hpp"
+#include "fdcan.h"
+#include "usbd_cdc_if.h"
 
 using HAL::FDCAN;
 using HAL::FDCANChannel;
 using HAL::fdcan_message_t;
 
 extern FDCAN_HandleTypeDef hfdcan1;
-
 extern FDCAN_HandleTypeDef hfdcan2;
 
 
@@ -26,6 +24,11 @@ MessagesCircularBuffer<fdcan_message_t> FDCAN::messages[2] = {
     MessagesCircularBuffer<fdcan_message_t>(CAN_MAX_MESSAGES)
 };
 
+// Global access to messages for callback functions
+static MessagesCircularBuffer<fdcan_message_t>* get_messages() {
+    return FDCAN::messages;
+}
+
 static uint8_t can_rx_queue_head = 0;
 static uint8_t can_rx_queue_tail = 0;
 
@@ -34,17 +37,18 @@ static uint32_t can2_rx_count = 0;
 static uint32_t can1_tx_count = 0;
 static uint32_t can2_tx_count = 0;
 
-static uint8_t can1_terminator_enabled = 0;
-static uint8_t can2_terminator_enabled = 0;
+// static uint8_t can1_terminator_enabled = 0;
+// static uint8_t can2_terminator_enabled = 0;
 
 
-int8_t FDCAN::receive_message(FDCANChannel channel, fdcan_message_t msg) {
-    FDCAN_HandleTypeDef *hfdcan = (channel == FDCANChannel::FDCAN1) ? &hfdcan1 : &hfdcan2;
+int8_t FDCAN::receive_message(HAL::FDCANChannel channel, HAL::fdcan_message_t msg) {
+    FDCAN_HandleTypeDef *hfdcan = (channel == FDCANChannel::CHANNEL_1) ? &hfdcan1 : &hfdcan2;
     FDCAN_RxHeaderTypeDef rx_header;
     uint8_t rx_data[8];
     if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &rx_header, rx_data) == HAL_OK) {
         uint8_t rx_msg[64];
-        int len = snprintf((char*)rx_msg, sizeof(rx_msg), "CAN%d: got a message\r\n", channel);
+        int len = snprintf(reinterpret_cast<char*>(rx_msg), sizeof(rx_msg),
+                                                    "CAN%d: got a message\r\n", static_cast<int>(channel));
         CDC_Transmit_FS(rx_msg, len);
         // Check if we have space in the queue
         uint8_t next_head = (can_rx_queue_head + 1) % CAN_MAX_MESSAGES;
@@ -55,18 +59,18 @@ int8_t FDCAN::receive_message(FDCANChannel channel, fdcan_message_t msg) {
             msg.channel = (uint8_t)channel;
             memcpy(msg.data, rx_data, 8);
             can_rx_queue_head = next_head;
-            if (channel == FDCANChannel::FDCAN1) {
+            if (channel == FDCANChannel::CHANNEL_1) {
                 can1_rx_count++;
             } else {
                 can2_rx_count++;
             }
-            return;
+            return 0;
         }
     }
     if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO1, &rx_header, rx_data) == HAL_OK) {
         uint8_t rx_msg[64];
         int len = snprintf(reinterpret_cast<char*>(rx_msg), sizeof(rx_msg),
-                                            "CAN%d: got a message\r\n", channel);
+                                            "CAN%d: got a message\r\n", static_cast<int>(channel));
         CDC_Transmit_FS(rx_msg, len);
 
         // Check if we have space in the queue
@@ -79,9 +83,10 @@ int8_t FDCAN::receive_message(FDCANChannel channel, fdcan_message_t msg) {
             can_rx_queue_head = next_head;
             can2_rx_count++;
         }
-        return;
+        return 0;
     }
-    CDC_Transmit_FS("CAN: got here\r\n", 15);
+    CDC_Transmit_FS((uint8_t*)"CAN: got here\r\n", 15);
+    return -1;
 }
 
 void FDCAN::send_message(const fdcan_message_t &msg) {
@@ -98,8 +103,6 @@ void FDCAN::send_message(const fdcan_message_t &msg) {
     tx_header.TxEventFifoControl = FDCAN_NO_TX_EVENTS;
     tx_header.MessageMarker = 0;
 
-    FDCAN_HandleTypeDef *hfdcan = (msg.channel == 1) ? &hfdcan1 : &hfdcan2;
-
     if (HAL_FDCAN_AddMessageToTxFifoQ(hfdcan, &tx_header, msg.data) == HAL_OK) {
         if (msg.channel == 1) {
             can1_tx_count++;
@@ -114,21 +117,49 @@ void FDCAN::send_message(const fdcan_message_t &msg) {
 /* CAN Interrupt Callbacks */
 void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs) {
     // Debug: Toggle green LED to indicate interrupt was called
-    HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_14);
+    HAL_GPIO_TogglePin(INTERNAL_LED_GREEN_GPIO_Port, INTERNAL_LED_GREEN_Pin);
 
     uint8_t channel = 1;
     if (hfdcan == &hfdcan2) {
         channel = 2;
     }
-    if((RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) != RESET)
-    {
+    uint8_t rx_data[8];
+    FDCAN_RxHeaderTypeDef rx_header;
+
+    if((RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) != RESET) {
+        if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &rx_header, rx_data) != HAL_OK) {
+            return;
+        }
+        fdcan_message_t msg;
+        msg.id = rx_header.Identifier;
+        msg.dlc = rx_header.DataLength;
+        msg.channel = channel;
+        memcpy(msg.data, rx_data, 8);
+        can_rx_queue_head = (can_rx_queue_head + 1) % CAN_MAX_MESSAGES;
+        if (channel == 1) {
+            can1_rx_count++;
+        } else {
+            can2_rx_count++;
+        }
+        get_messages()[channel - 1].push_message(msg);
         /* Retrieve Rx messages from RX FIFO0 */
-        receive_can_message(hfdcan,channel);  // Channel 1 for FDCAN1
     }
-    if((RxFifo0ITs & FDCAN_IT_RX_FIFO1_NEW_MESSAGE) != RESET)
-    {
-        /* Retrieve Rx messages from RX FIFO0 */
-        receive_can_message(hfdcan, channel);  // Channel 2 for FDCAN2
+    if((RxFifo0ITs & FDCAN_IT_RX_FIFO1_NEW_MESSAGE) != RESET) {
+        if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO1, &rx_header, rx_data) != HAL_OK) {
+            return;
+        }
+        fdcan_message_t msg;
+        msg.id = rx_header.Identifier;
+        msg.dlc = rx_header.DataLength;
+        msg.channel = channel;
+        memcpy(msg.data, rx_data, 8);
+        can_rx_queue_head = (can_rx_queue_head + 1) % CAN_MAX_MESSAGES;
+        if (channel == 1) {
+            can1_rx_count++;
+        } else {
+            can2_rx_count++;
+        }
+        get_messages()[channel - 1].push_message(msg);
     }
 }
 
@@ -139,19 +170,21 @@ void HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo1ITs)
     if (hfdcan == &hfdcan2) {
         channel = 2;
     }
-    if((RxFifo1ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) != RESET)
-    {
-        /* Retrieve Rx messages from RX FIFO0 */
-        receive_can_message(hfdcan, channel + 2);  // Channel 1 for FDCAN1
+    if((RxFifo1ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) != RESET) {
+        fdcan_message_t msg;
+        memcpy(&msg, &can_rx_queue[can_rx_queue_head], sizeof(fdcan_message_t));
+        can_rx_queue_head = (can_rx_queue_head + 1) % CAN_MAX_MESSAGES;
+        get_messages()[channel - 1].push_message(msg);
     }
-    if((RxFifo1ITs & FDCAN_IT_RX_FIFO1_NEW_MESSAGE) != RESET)
-    {
-        /* Retrieve Rx messages from RX FIFO0 */
-        receive_can_message(hfdcan, channel+2);  // Channel 2 for FDCAN1
+    if((RxFifo1ITs & FDCAN_IT_RX_FIFO1_NEW_MESSAGE) != RESET) {
+        fdcan_message_t msg;
+        memcpy(&msg, &can_rx_queue[can_rx_queue_head], sizeof(fdcan_message_t));
+        can_rx_queue_head = (can_rx_queue_head + 1) % CAN_MAX_MESSAGES;
+        get_messages()[channel - 1].push_message(msg);
     }
 }
 
-void HAL_FDCAN_TxEventFifoCallback(FDCAN_HandleTypeDef *hfdcan, uint32_t TxEventFifoITs) {
+void HAL_FDCAN_TxEventFifoCallback(FDCAN_HandleTypeDef *hfdcan, uint32_t /*TxEventFifoITs*/) {
     // Optional: Handle transmission events
     // UNUSED(hfdcan);
     uint8_t error_msg[19];

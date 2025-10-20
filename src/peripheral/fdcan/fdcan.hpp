@@ -22,15 +22,16 @@ typedef struct {
 } fdcan_message_t;
 
 enum class FDCANChannel: uint8_t {
-  FDCAN1 = 1,
-  FDCAN2 = 2,
+  CHANNEL_1 = 1,
+  CHANNEL_2 = 2,
 };
 
 class FDCAN {
-    int8_t receive_message(FDCANChannel channel, fdcan_message_t msg);
-    void send_message(const fdcan_message_t &msg);
- private:
-    static MessagesCircularBuffer<fdcan_message_t> messages[2];
+    int8_t receive_message(HAL::FDCANChannel channel, HAL::fdcan_message_t msg);
+    void send_message(const HAL::fdcan_message_t &msg);
+ public:
+    static MessagesCircularBuffer<HAL::fdcan_message_t> messages[2];
 };
 
-}  // namespace HAL
+// Forward declarations for callback functions
+};  // namespace HAL

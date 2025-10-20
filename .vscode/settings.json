@@ -14,7 +14,23 @@
         "random": "cpp",
         "limits": "cpp",
         "valarray": "cpp",
-        "algorithm": "cpp"
-    }
+        "algorithm": "cpp",
+        "usbd_cdc.h": "c",
+        "bitset": "c",
+        "*.c_bak": "c",
+        "*.cbak": "c",
+        "cstring": "cpp",
+        "variant": "cpp",
+        "charconv": "cpp",
+        "optional": "cpp",
+        "format": "cpp",
+        "ratio": "cpp",
+        "system_error": "cpp",
+        "functional": "cpp",
+        "tuple": "cpp",
+        "type_traits": "cpp",
+        "utility": "cpp"
+    },
+    "cortex-debug.variableUseNaturalFormat": false
 
 }

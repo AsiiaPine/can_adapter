@@ -5,29 +5,30 @@
  */
 
 
-#pragma once
 #include <cstdint>
 #include <cstdio>
-#include <algorithm>
-#include "App/usbd_cdc_if.h"
-#include "Inc/main.h"
+#include "common/algorithms.h"
+#include "usbd_cdc_if.h"
+#include "main.h"
 #include "peripheral/usb/usb.hpp"
 
 using HAL::USB;
 extern USBD_HandleTypeDef hUsbDeviceFS;
-uint8_t usb_rx_buffer[USB_BUFFER_SIZE];
-uint8_t usb_tx_buffer[USB_BUFFER_SIZE];
-uint8_t usb_rx_index = 0;
-uint8_t usb_tx_index = 0;
 
 int8_t USB::get_message(uint8_t *data, uint16_t len, char last_char) {
-    if (usb_rx_index > 0) {
-        uint16_t data_to_copy = min(len, usb_rx_index);
-        memccpy(data, usb_rx_buffer, '\r', data_to_copy);
-        usb_rx_index -= data_to_copy;
-        return 0;
+    if (messages.size == 0) {
+        return -1;
     }
-    return -1;
+    for (uint16_t i = 0; i < len; i++) {
+        if (messages.size == 0) {
+            return 0;
+        }
+        messages.pop_last_message(data + i);
+        if (data[i] == last_char) {
+            return 0;
+        }
+    }
+    return 0;
 }
 
 int8_t USB::send_message(uint8_t *data, uint16_t len) {
@@ -35,26 +36,4 @@ int8_t USB::send_message(uint8_t *data, uint16_t len) {
         return 0;
     }
     return -1;
-}
-
-/* HAL USBD_CDC functions */
-int8_t process_usb_command(uint8_t *data, uint16_t len) {
-// Accumulate received data for CAN protocol processing
-  if (usb_rx_index + *len < USB_BUFFER_SIZE) {
-    memcpy(&usb_rx_buffer[usb_rx_index], data, *len);
-    usb_rx_index += *len;
-  } else {
-    // Buffer overflow, reset index
-    usb_rx_index = 0;
-    memcpy(&usb_rx_buffer[usb_rx_index], data, *len);
-    // Optionally, you can handle the overflow case here (e.g., log an error)
-  }
-
-  USBD_CDC_SetRxBuffer(&hUsbDeviceFS, &data[0]);
-  USBD_CDC_ReceivePacket(&hUsbDeviceFS);
-  return (USBD_OK);
-}
-
-int8_t transmit_complete_callback(uint8_t *Buf, uint32_t *Len, uint8_t epnum) {
-  return USBD_OK;
 }

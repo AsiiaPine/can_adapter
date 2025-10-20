@@ -33,14 +33,14 @@ def switch_port():
             print(port)
             ser = serial.Serial('/dev/' + port, 115200, timeout=1)
             last_time = 0.0
-            msg = b'r1018\r'
+            msg = 'HELLO\r'
             while True:
                 if time.time() - last_rec_time > 2:
                     i += 1
                     continue
                 if time.time() - last_time > 1:
-                    ser.write(msg)
-                    print("sent ", msg)
+                    ser.write(msg.encode('utf-8'))
+                    print(f"sent {msg}\n\n")
                     last_time = time.time()
                 if ser.in_waiting:
                     data = ser.read_all()

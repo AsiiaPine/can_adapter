@@ -4,13 +4,15 @@
  * Author: Anastasiia Stepanova <asiiapine@gmail.com>
  */
 
+#pragma once
 #define MAX_MESSAGES 100
+#include <cstring>
 template <typename T> class MessagesCircularBuffer {
  public:
-    MessagesCircularBuffer(uint8_t max_size) : max_size(max_size) {}
+    MessagesCircularBuffer(uint8_t maximum_size) : max_size(maximum_size) {}
 
     inline void push_message(T message, uint8_t len = sizeof(T)) {
-        std::memcpy(&messages[next_id], &message, len);
+        memcpy(&messages[next_id], &message, len);
         // messages[next_id] = message;
         next_id++;
         size++;
