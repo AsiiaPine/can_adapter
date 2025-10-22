@@ -116,4 +116,4 @@ def main():
             can.serial.close()
 
 if __name__ == "__main__":
-    main() 
+    main()

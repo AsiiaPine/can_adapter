@@ -27,6 +27,9 @@ int8_t USB::get_message(uint8_t *data, uint16_t len, char last_char) {
         if (data[i] == last_char) {
             return 0;
         }
+        if (data[i] == '\a') {
+            return -1;
+        }
     }
     return 0;
 }

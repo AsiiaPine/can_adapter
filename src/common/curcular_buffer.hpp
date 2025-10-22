@@ -13,7 +13,6 @@ template <typename T> class MessagesCircularBuffer {
 
     inline void push_message(T message, uint8_t len = sizeof(T)) {
         memcpy(&messages[next_id], &message, len);
-        // messages[next_id] = message;
         next_id++;
         size++;
         if (next_id >= max_size) {
@@ -24,21 +23,22 @@ template <typename T> class MessagesCircularBuffer {
         }
     }
 
-    inline void pop_last_message(T* message) {
+    inline int8_t pop_last_message(T* message) {
         uint8_t id = 0;
         if (size == 0) {
-            *message = {0};
-            return;
+            return -1;
         }
         if (next_id < size) {
             id = max_size - size + next_id;
         } else {
             id = next_id - size + 1;
         }
-        *message = messages[id];
+        memcpy(&messages[id], message, sizeof(T));
         size--;
+        return 0;
     }
     uint8_t size = 0;
+
 
  private:
     uint8_t max_size;

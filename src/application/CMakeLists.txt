@@ -9,3 +9,4 @@ cmake_path(GET APPLICATIONS_DIR PARENT_PATH SRC_DIR)
 list(APPEND APPLICATION_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/application.cpp
 )
+include(${ROOT_DIR}/src/drivers/slcan/CMakeLists.txt)

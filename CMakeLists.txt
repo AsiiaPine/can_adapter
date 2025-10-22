@@ -42,10 +42,6 @@ set(APPLICATION_DIR ${ROOT_DIR}/src/application)
 list(APPEND APPLICATION_HEADERS ${ROOT_DIR}/src ${APPLICATION_DIR})
 include(${APPLICATION_DIR}/CMakeLists.txt)
 
-# Include peripheral sources (temporarily disabled due to HAL compatibility issues)
-include(${ROOT_DIR}/src/peripheral/usb/CMakeLists.txt)
-include(${ROOT_DIR}/src/peripheral/fdcan/CmakeLists.txt)
-
 # Project
 project(node CXX C ASM)
 

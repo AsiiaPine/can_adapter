@@ -27,10 +27,11 @@ enum class FDCANChannel: uint8_t {
 };
 
 class FDCAN {
-    int8_t receive_message(HAL::FDCANChannel channel, HAL::fdcan_message_t msg);
-    void send_message(const HAL::fdcan_message_t &msg);
  public:
+    static int8_t receive_message(HAL::FDCANChannel channel, HAL::fdcan_message_t msg);
+    static void send_message(HAL::fdcan_message_t *msg);
     static MessagesCircularBuffer<HAL::fdcan_message_t> messages[2];
+    static void set_bitrate(uint32_t bitrate);
 };
 
 // Forward declarations for callback functions
