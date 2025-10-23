@@ -10,6 +10,7 @@
 #include "fdcan.h"
 #include "usbd_cdc_if.h"
 #include <stm32g0xx_hal_fdcan.h>
+#include "main.h"
 
 using HAL::FDCAN;
 using HAL::FDCANChannel;
@@ -19,6 +20,7 @@ extern FDCAN_HandleTypeDef hfdcan1;
 extern FDCAN_HandleTypeDef hfdcan2;
 
 void FDCAN::set_bitrate(uint32_t bitrate) {
+    UNUSED(bitrate);
 }
 
 MessagesCircularBuffer<fdcan_message_t> FDCAN::messages[2] = {
@@ -95,15 +97,18 @@ uint8_t get_message_length(FDCAN_RxHeaderTypeDef rx_header) {
 
 /* HAL FD CAN Callbacks */
 void push_can_message(uint8_t channel, FDCAN_RxHeaderTypeDef rx_header, uint8_t *data) {
-    fdcan_message_t msg;
+    fdcan_message_t msg = {0};
+
     msg.isExtended = (rx_header.IdType == FDCAN_EXTENDED_ID);
-    msg.isRemote = (rx_header.RxFrameType == FDCAN_REMOTE_FRAME);
-    msg.id = rx_header.Identifier;
-    if (msg.isExtended) {
-        msg.id &= 0x1FFFFFFF;
-    } else {
-        msg.id &= 0x7FF;
-    }
+    msg.isRemote   = (rx_header.RxFrameType == FDCAN_REMOTE_FRAME);
+
+    if (msg.isExtended)
+        HAL_GPIO_TogglePin(INTERNAL_LED_BLUE_GPIO_Port, INTERNAL_LED_BLUE_Pin);
+    if (msg.isRemote)
+        HAL_GPIO_TogglePin(INTERNAL_LED_RED_GPIO_Port, INTERNAL_LED_RED_Pin);
+
+    msg.id = rx_header.Identifier & (msg.isExtended ? 0x1FFFFFFF : 0x7FF);
+
     msg.dlc = get_message_length(rx_header);
     msg.channel = channel;
     memcpy(msg.data, data, msg.dlc);
@@ -122,7 +127,7 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
     if ((RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) == RESET) {
         return;
     }
-    uint8_t rx_data[8];
+    uint8_t rx_data[64];
     FDCAN_RxHeaderTypeDef rx_header;
     if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &rx_header, rx_data) != HAL_OK) {
         return;
@@ -131,9 +136,8 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
 }
 
 void HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo1ITs) {
-    // Debug: Toggle green LED to indicate interrupt was called
+    // Debug: Toggle blue LED to indicate interrupt was called
     HAL_GPIO_TogglePin(INTERNAL_LED_BLUE_GPIO_Port, INTERNAL_LED_BLUE_Pin);
-
     uint8_t channel = 1;
     if (hfdcan == &hfdcan2) {
         channel = 2;
@@ -156,12 +160,12 @@ void HAL_FDCAN_TxEventFifoCallback(FDCAN_HandleTypeDef *hfdcan, uint32_t /*TxEve
 
     if (hfdcan == &hfdcan1) {
         // Toggle red LED to indicate CAN1 error
-        HAL_GPIO_TogglePin(INTERNAL_LED_RED_GPIO_Port, INTERNAL_LED_RED_Pin);
+        // HAL_GPIO_TogglePin(INTERNAL_LED_RED_GPIO_Port, INTERNAL_LED_RED_Pin);
         // Send error message via USB
         memcpy(error_msg, "Retransmit: CAN1\r\n", sizeof(error_msg));
     } else if (hfdcan == &hfdcan2) {
         // Toggle red LED to indicate CAN2 error
-        HAL_GPIO_TogglePin(INTERNAL_LED_RED_GPIO_Port, INTERNAL_LED_RED_Pin);
+        // HAL_GPIO_TogglePin(INTERNAL_LED_RED_GPIO_Port, INTERNAL_LED_RED_Pin);
         // Send error message via USB
         memcpy(error_msg, "Retransmit: CAN2\r\n", sizeof(error_msg));
     }
@@ -172,13 +176,13 @@ void HAL_FDCAN_ErrorCallback(FDCAN_HandleTypeDef *hfdcan) {
     // Handle CAN errors
     if (hfdcan == &hfdcan1) {
         // Toggle red LED to indicate CAN1 error
-        HAL_GPIO_TogglePin(INTERNAL_LED_RED_GPIO_Port, INTERNAL_LED_RED_Pin);
+        // HAL_GPIO_TogglePin(INTERNAL_LED_RED_GPIO_Port, INTERNAL_LED_RED_Pin);
         // Send error message via USB
         uint8_t error_msg[] = "CAN1 Error\r\n";
         CDC_Transmit_FS(error_msg, sizeof(error_msg) - 1);
     } else if (hfdcan == &hfdcan2) {
         // Toggle red LED to indicate CAN2 error
-        HAL_GPIO_TogglePin(INTERNAL_LED_RED_GPIO_Port, INTERNAL_LED_RED_Pin);
+        // HAL_GPIO_TogglePin(INTERNAL_LED_RED_GPIO_Port, INTERNAL_LED_RED_Pin);
         // Send error message via USB
         uint8_t error_msg[] = "CAN2 Error\r\n";
         CDC_Transmit_FS(error_msg, sizeof(error_msg) - 1);

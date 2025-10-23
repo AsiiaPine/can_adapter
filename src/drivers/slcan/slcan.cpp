@@ -179,26 +179,23 @@ uint8_t charToUint8_t(char ch) {
 
 int8_t SLCAN::send_can_to_usb(fdcan_message_t msg) {
     SLCANCommand start_char = SLCANCommand::TRANSMIT_STANDART;
-    uint8_t id_len = 0;
     slcan_frame_t frame;
-    char data[sizeof(frame)+1] = {};
+    char data[34] = {};
     if (msg.dlc > 8) {
         return -1;
     }
     char id_format[5] = {"%03X"};
     char id_hex[9];
     char data_hex[16] = {0};
-    if (msg.isExtended) {
-        id_len = 3;
+    if (msg.isExtended == true) {
         start_char = SLCANCommand::TRANSMIT_EXTENDED;
-        if (msg.isRemote) {
+        if (msg.isRemote == true) {
             start_char = SLCANCommand::TRANSMIT_EXTENDED_RTR;
         }
     } else {
-        id_len = 8;
         id_format[2] = '8';
         start_char = SLCANCommand::TRANSMIT_STANDART;
-        if (msg.isRemote) {
+        if (msg.isRemote == true) {
             start_char = SLCANCommand::TRANSMIT_STANDART_RTR;
         }
     }
@@ -211,7 +208,7 @@ int8_t SLCAN::send_can_to_usb(fdcan_message_t msg) {
         snprintf(data_hex + 2 * i, 3, "%02X", msg.data[i]);
     }
     snprintf(data, sizeof(data), "m: %c %s %c %s\r\n",
-                        SLCANCommand_to_char(start_char), id_hex, len_char, data_hex);
+                        start_char, id_hex, len_char, data_hex);
     return HAL::USB::send_message(reinterpret_cast<uint8_t*>(data), sizeof(data));
 }
 

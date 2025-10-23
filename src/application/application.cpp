@@ -19,7 +19,12 @@ HAL::fdcan_message_t test_msg2;
 
 __attribute__((noreturn)) void application_entry_point() {
     // uint32_t last_time = HAL_GetTick();
+    HAL_GPIO_WritePin(INTERNAL_LED_BLUE_GPIO_Port, INTERNAL_LED_BLUE_Pin, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(INTERNAL_LED_RED_GPIO_Port, INTERNAL_LED_RED_Pin, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(INTERNAL_LED_GREEN_GPIO_Port, INTERNAL_LED_GREEN_Pin, GPIO_PIN_RESET);
+
     while (true) {
+        // HAL_GPIO_WritePin(INTERNAL_LED_RED_GPIO_Port, INTERNAL_LED_RED_Pin, GPIO_PIN_SET);
         // if (HAL_GetTick() - last_time > 1000) {
         //     HAL::USB::send_message(init_msg, sizeof(init_msg) - 1);
         //     HAL_GPIO_TogglePin(INTERNAL_LED_BLUE_GPIO_Port, INTERNAL_LED_BLUE_Pin);
