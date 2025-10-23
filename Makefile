@@ -14,4 +14,4 @@ clean:
 	rm -rf $(BUILD_DIR)/obj
 
 upload:
-	st-flash write $(BUILD_DIR)/obj/node.bin 0x8000000
+	st-flash --reset write $(BUILD_DIR)/obj/node.bin 0x8000000

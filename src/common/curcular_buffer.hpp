@@ -5,14 +5,21 @@
  */
 
 #pragma once
-#define MAX_MESSAGES 100
+#define MAX_MESSAGES 10  // Reduced for STM32G0B1 memory constraints
 #include <cstring>
+#include <cstdint>
+
 template <typename T> class MessagesCircularBuffer {
  public:
-    MessagesCircularBuffer(uint8_t maximum_size) : max_size(maximum_size) {}
+    explicit MessagesCircularBuffer(uint8_t maximum_size) : max_size(maximum_size) {
+        // Initialize the messages array to zero
+        next_id = 0;
+        size = 0;
+    }
 
-    inline void push_message(T message, uint8_t len = sizeof(T)) {
-        memcpy(&messages[next_id], &message, len);
+    inline void push_message(const T& message) {
+        // Direct assignment instead of memcpy for better performance and safety
+        messages[next_id] = message;
         next_id++;
         size++;
         if (next_id >= max_size) {
@@ -21,24 +28,34 @@ template <typename T> class MessagesCircularBuffer {
         if (size >= max_size) {
             size = max_size;
         }
+        assert_param(size <= max_size);
+        assert_param(next_id < max_size);
     }
 
-    inline int8_t pop_last_message(T* message) {
-        uint8_t id = 0;
+    inline int8_t pop_last_message(const T& message) {
         if (size == 0) {
             return -1;
         }
+
+        assert_param(size <= max_size);
+
+        uint8_t id = 0;
+        // Calculate the index of the last message
         if (next_id < size) {
             id = max_size - size + next_id;
         } else {
             id = next_id - size + 1;
         }
-        memcpy(&messages[id], message, sizeof(T));
+
+        assert_param(id < max_size);
+
+        // *message = messages[id];
+        memcpy(&messages[id], &message, sizeof(T));
         size--;
         return 0;
     }
-    uint8_t size = 0;
 
+    uint8_t size = 0;
 
  private:
     uint8_t max_size;

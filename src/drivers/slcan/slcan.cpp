@@ -17,6 +17,7 @@ using HAL::fdcan_message_t;
 using HAL::USB;
 
 extern USBD_HandleTypeDef hUsbDeviceFS;
+MessagesCircularBuffer<uint8_t> HAL::USB::messages = MessagesCircularBuffer<uint8_t>(100);
 
 char SLCANCommand_to_char(SLCANCommand cmd) {
     return static_cast<char>(cmd);
@@ -179,36 +180,38 @@ uint8_t charToUint8_t(char ch) {
 
 int8_t SLCAN::send_can_to_usb(fdcan_message_t msg) {
     SLCANCommand start_char = SLCANCommand::TRANSMIT_STANDART;
-    slcan_frame_t frame;
-    char data[34] = {};
+    char data[55] = {};
     if (msg.dlc > 8) {
         return -1;
     }
-    char id_format[5] = {"%03X"};
+    // char id_format[5] = {"%03X"};
     char id_hex[9];
     char data_hex[16] = {0};
-    if (msg.isExtended == true) {
+    if (msg.isExtended == 1) {
         start_char = SLCANCommand::TRANSMIT_EXTENDED;
         if (msg.isRemote == true) {
             start_char = SLCANCommand::TRANSMIT_EXTENDED_RTR;
         }
     } else {
-        id_format[2] = '8';
+        // id_format[2] = '8';
         start_char = SLCANCommand::TRANSMIT_STANDART;
         if (msg.isRemote == true) {
             start_char = SLCANCommand::TRANSMIT_STANDART_RTR;
         }
     }
 
-    frame.command = start_char;
-    snprintf(id_hex, sizeof(id_hex), id_format, msg.id);
-    char len_char = msg.dlc + '0';
+    snprintf(id_hex, sizeof(id_hex), "%X\n", msg.id);
 
-    for (int i = 0; i < msg.dlc; i++) {
+    // snprintf(id_hex, sizeof(id_hex), id_format, msg.id);
+    char dlc_str[3] = {};
+    snprintf(dlc_str, sizeof(dlc_str), "%X", static_cast<int>(msg.dlc));
+
+    for (int i = 0; i < 8; i++) {
         snprintf(data_hex + 2 * i, 3, "%02X", msg.data[i]);
     }
-    snprintf(data, sizeof(data), "m: %c %s %c %s\r\n",
-                        start_char, id_hex, len_char, data_hex);
+
+    snprintf(data, sizeof(data), "cmd: %c id: %s\n len: %s data: %s\r\n",
+                        start_char, id_hex, dlc_str, data_hex);
     return HAL::USB::send_message(reinterpret_cast<uint8_t*>(data), sizeof(data));
 }
 
@@ -230,6 +233,9 @@ void SLCAN::spin() {
     process_cmd_from_usb();
     fdcan_message_t test_msg;
     if (HAL::FDCAN::receive_message(HAL::FDCANChannel::CHANNEL_1, test_msg) == 0) {
+        send_can_to_usb(test_msg);
+    }
+    if (HAL::FDCAN::receive_message(HAL::FDCANChannel::CHANNEL_2, test_msg) == 0) {
         send_can_to_usb(test_msg);
     }
 }

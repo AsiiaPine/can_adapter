@@ -11,15 +11,12 @@
 
 extern USBD_HandleTypeDef hUsbDeviceFS;
 
-/* USB RX/TX buffers and indices */
-MessagesCircularBuffer<uint8_t> HAL::USB::messages = MessagesCircularBuffer<uint8_t>(100);
-
 /* HAL USBD_CDC functions */
 int8_t process_usb_command(uint8_t *data, uint16_t len) {
   USBD_CDC_SetRxBuffer(&hUsbDeviceFS, data);
   USBD_CDC_ReceivePacket(&hUsbDeviceFS);
   for (uint16_t i = 0; i < len; i++) {
-    HAL::USB::messages.push_message(data[i], len);
+    HAL::USB::messages.push_message(data[i]);
   }
 
   return USBD_OK;

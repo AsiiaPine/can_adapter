@@ -24,8 +24,8 @@ void FDCAN::set_bitrate(uint32_t bitrate) {
 }
 
 MessagesCircularBuffer<fdcan_message_t> FDCAN::messages[2] = {
-    MessagesCircularBuffer<fdcan_message_t>(CAN_MAX_MESSAGES),
-    MessagesCircularBuffer<fdcan_message_t>(CAN_MAX_MESSAGES)
+    MessagesCircularBuffer<fdcan_message_t>(10),  // Reduced buffer size for STM32G0B1
+    MessagesCircularBuffer<fdcan_message_t>(10)
 };
 
 // Global access to messages for callback functions
@@ -33,13 +33,17 @@ static MessagesCircularBuffer<fdcan_message_t>* get_messages() {
     return FDCAN::messages;
 }
 
-int8_t FDCAN::receive_message(HAL::FDCANChannel channel, HAL::fdcan_message_t msg) {
-    if (FDCAN::messages[static_cast<int>(channel) - 1].pop_last_message(&msg) < 0) {
+int8_t FDCAN::receive_message(HAL::FDCANChannel channel, const HAL::fdcan_message_t& msg) {
+    auto& messages = get_messages()[static_cast<uint8_t>(channel) - 1];
+    if (messages.size == 0) {
+        return -1;
+    }
+    if (messages.pop_last_message(msg) < 0) {
         return -1;
     }
     char buf[64];
-    snprintf(buf, sizeof(buf), "CAN%d: got a message %d\r\n", static_cast<int>(channel),
-                                                                int(msg.id));
+    snprintf(buf, sizeof(buf), "CAN%d: got a message %X\r\n", static_cast<int>(channel),
+                                                                (msg.id));
     CDC_Transmit_FS(reinterpret_cast<uint8_t*>(buf), strlen(buf));
     return 0;
 }
@@ -61,57 +65,89 @@ void FDCAN::send_message(fdcan_message_t *msg) {
     HAL_FDCAN_AddMessageToTxFifoQ(hfdcan, &tx_header, msg->data);
 }
 
-uint8_t get_message_length(FDCAN_RxHeaderTypeDef rx_header) {
-    uint8_t length = rx_header.DataLength << 16;
-    if (rx_header.DataLength < GPIO_PIN_9) {
-        return length;
+uint8_t get_message_length(FDCAN_RxHeaderTypeDef *rx_header) {
+    if (rx_header->DataLength & FDCAN_DLC_BYTES_0) {
+        return 0;
     }
-    switch (rx_header.DataLength) {
-    case FDCAN_DLC_BYTES_12:
-        length = 12;
-        break;
-    case FDCAN_DLC_BYTES_16:
-        length = 16;
-        break;
-    case FDCAN_DLC_BYTES_20:
-        length = 20;
-        break;
-    case FDCAN_DLC_BYTES_24:
-        length = 24;
-        break;
-    case FDCAN_DLC_BYTES_32:
-        length = 32;
-        break;
-    case FDCAN_DLC_BYTES_48:
-        length = 48;
-        break;
-    case FDCAN_DLC_BYTES_64:
-        length = 64;
-        break;
-    default:
-        length = 0;
-        break;
+    if (rx_header->DataLength & FDCAN_DLC_BYTES_1) {
+        return 1;
     }
-    return length;
+    if (rx_header->DataLength & FDCAN_DLC_BYTES_2) {
+        return 2;
+    }
+    if (rx_header->DataLength & FDCAN_DLC_BYTES_3) {
+        return 3;
+    }
+    if (rx_header->DataLength & FDCAN_DLC_BYTES_4) {
+        return 4;
+    }
+    if (rx_header->DataLength & FDCAN_DLC_BYTES_5) {
+        return 5;
+    }
+    if (rx_header->DataLength & FDCAN_DLC_BYTES_6) {
+        return 6;
+    }
+    if (rx_header->DataLength & FDCAN_DLC_BYTES_7) {
+        return 7;
+    }
+    if (rx_header->DataLength & FDCAN_DLC_BYTES_8) {
+        return 8;
+    }
+    if (rx_header->DataLength & FDCAN_DLC_BYTES_12) {
+        return 12;
+    }
+    if (rx_header->DataLength & FDCAN_DLC_BYTES_16) {
+        return 16;
+    }
+    if (rx_header->DataLength & FDCAN_DLC_BYTES_20) {
+        return 20;
+    }
+    if (rx_header->DataLength & FDCAN_DLC_BYTES_24) {
+        return 24;
+    }
+    if (rx_header->DataLength & FDCAN_DLC_BYTES_32) {
+        return 32;
+    }
+    if (rx_header->DataLength & FDCAN_DLC_BYTES_48) {
+        return 48;
+    }
+    if (rx_header->DataLength & FDCAN_DLC_BYTES_64) {
+        return 64;
+    }
+    return 255;  // Invalid length
 }
 
 /* HAL FD CAN Callbacks */
-void push_can_message(uint8_t channel, FDCAN_RxHeaderTypeDef rx_header, uint8_t *data) {
-    fdcan_message_t msg = {0};
+void push_can_message(uint8_t channel, FDCAN_RxHeaderTypeDef *rx_header, uint8_t *data) {
+    fdcan_message_t msg = {0};  // Initialize all fields to zero
 
-    msg.isExtended = (rx_header.IdType == FDCAN_EXTENDED_ID);
-    msg.isRemote   = (rx_header.RxFrameType == FDCAN_REMOTE_FRAME);
+    msg.isExtended = (rx_header->IdType != FDCAN_STANDARD_ID);
+    msg.isRemote   = (rx_header->RxFrameType != FDCAN_DATA_FRAME);
 
-    if (msg.isExtended)
+    if (msg.isExtended) {
         HAL_GPIO_TogglePin(INTERNAL_LED_BLUE_GPIO_Port, INTERNAL_LED_BLUE_Pin);
+        msg.id = rx_header->Identifier & 0x1FFFFFFF;
+    } else {
+        msg.id = rx_header->Identifier & 0x7FF;
+    }
+
     if (msg.isRemote)
         HAL_GPIO_TogglePin(INTERNAL_LED_RED_GPIO_Port, INTERNAL_LED_RED_Pin);
 
-    msg.id = rx_header.Identifier & (msg.isExtended ? 0x1FFFFFFF : 0x7FF);
-
     msg.dlc = get_message_length(rx_header);
     msg.channel = channel;
-    memcpy(msg.data, data, msg.dlc);
+
+    // Copy data safely with bounds checking
+    uint8_t copy_len = (msg.dlc > 8) ? 8 : msg.dlc;
+    for (uint8_t i = 0; i < copy_len; i++) {
+        msg.data[i] = data[i];
+    }
+
+    // Clear remaining bytes
+    for (uint8_t i = copy_len; i < 8; i++) {
+        msg.data[i] = 0;
+    }
+
     HAL::FDCAN::messages[channel - 1].push_message(msg);
 }
 
@@ -132,7 +168,7 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
     if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &rx_header, rx_data) != HAL_OK) {
         return;
     }
-    push_can_message(channel, rx_header, rx_data);
+    push_can_message(channel, &rx_header, rx_data);
 }
 
 void HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo1ITs) {
@@ -150,7 +186,7 @@ void HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo1ITs)
     if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO1, &rx_header, rx_data) != HAL_OK) {
         return;
     }
-    push_can_message(channel, rx_header, rx_data);
+    push_can_message(channel, &rx_header, rx_data);
 }
 
 void HAL_FDCAN_TxEventFifoCallback(FDCAN_HandleTypeDef *hfdcan, uint32_t /*TxEventFifoITs*/) {
