@@ -33,12 +33,8 @@ static MessagesCircularBuffer<fdcan_message_t>* get_messages() {
     return FDCAN::messages;
 }
 
-int8_t FDCAN::receive_message(HAL::FDCANChannel channel, const HAL::fdcan_message_t& msg) {
-    auto& messages = get_messages()[static_cast<uint8_t>(channel) - 1];
-    if (messages.size == 0) {
-        return -1;
-    }
-    if (messages.pop_last_message(msg) < 0) {
+int8_t FDCAN::receive_message(HAL::FDCANChannel channel, HAL::fdcan_message_t& msg) {
+    if (FDCAN::messages[static_cast<int>(channel) - 1].pop_last_message(&msg) < 0) {
         return -1;
     }
     char buf[64];

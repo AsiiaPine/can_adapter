@@ -17,7 +17,6 @@ using HAL::fdcan_message_t;
 using HAL::USB;
 
 extern USBD_HandleTypeDef hUsbDeviceFS;
-MessagesCircularBuffer<uint8_t> HAL::USB::messages = MessagesCircularBuffer<uint8_t>(100);
 
 char SLCANCommand_to_char(SLCANCommand cmd) {
     return static_cast<char>(cmd);

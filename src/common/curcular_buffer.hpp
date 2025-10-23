@@ -22,36 +22,21 @@ template <typename T> class MessagesCircularBuffer {
         messages[next_id] = message;
         next_id++;
         size++;
-        if (next_id >= max_size) {
-            next_id = 0;
-        }
+        next_id %= max_size;
         if (size >= max_size) {
             size = max_size;
         }
-        assert_param(size <= max_size);
-        assert_param(next_id < max_size);
     }
 
-    inline int8_t pop_last_message(const T& message) {
+    inline int8_t pop_last_message(T* message) {
         if (size == 0) {
             return -1;
         }
 
-        assert_param(size <= max_size);
-
-        uint8_t id = 0;
-        // Calculate the index of the last message
-        if (next_id < size) {
-            id = max_size - size + next_id;
-        } else {
-            id = next_id - size + 1;
-        }
-
-        assert_param(id < max_size);
-
-        // *message = messages[id];
-        memcpy(&messages[id], &message, sizeof(T));
+        *message = messages[last_index];
         size--;
+        last_index++;
+        last_index %= max_size;
         return 0;
     }
 
@@ -61,4 +46,5 @@ template <typename T> class MessagesCircularBuffer {
     uint8_t max_size;
     T messages[MAX_MESSAGES];
     uint8_t next_id = 0;
+    uint8_t last_index = 0;
 };

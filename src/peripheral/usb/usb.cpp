@@ -23,9 +23,7 @@ int8_t USB::get_message(uint8_t *data, uint16_t len, char last_char) {
         if (messages.size == 0) {
             return 0;
         }
-        uint8_t message;
-        messages.pop_last_message(message);
-        data[i] = message;
+        messages.pop_last_message(data + i);
         if (data[i] == last_char) {
             return 0;
         }
