@@ -126,7 +126,10 @@ void push_can_message(uint8_t channel, FDCAN_RxHeaderTypeDef *rx_header, uint8_t
     } else {
         msg.id = rx_header->Identifier & 0x7FF;
     }
-
+    if (msg.id == 0) {
+        HAL_GPIO_TogglePin(INTERNAL_LED_RED_GPIO_Port, INTERNAL_LED_RED_Pin);
+        return;
+    }
     if (msg.isRemote)
         HAL_GPIO_TogglePin(INTERNAL_LED_RED_GPIO_Port, INTERNAL_LED_RED_Pin);
 

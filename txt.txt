@@ -1,0 +1,33 @@
+/home/asiia/Documents/work/nodes/can_adapter/src/drivers/slcan/slcan.cpp: In static member function 'static int8_t SLCAN::send_can_to_usb(HAL::fdcan_message_t)':
+/home/asiia/Documents/work/nodes/can_adapter/src/drivers/slcan/slcan.cpp:202:40: warning: format '%X' expects argument of type 'unsigned int', but argument 4 has type 'uint32_t' {aka 'long unsigned int'} [-Wformat=]
+  202 |     snprintf(id_hex, sizeof(id_hex), "%X\n", msg.id);
+      |                                       ~^     ~~~~~~
+      |                                        |         |
+      |                                        |         uint32_t {aka long unsigned int}
+      |                                        unsigned int
+      |                                       %lX
+/home/asiia/Documents/work/nodes/can_adapter/src/peripheral/fdcan/fdcan.cpp: In static member function 'static int8_t HAL::FDCAN::receive_message(HAL::FDCANChannel, HAL::fdcan_message_t&)':
+/home/asiia/Documents/work/nodes/can_adapter/src/peripheral/fdcan/fdcan.cpp:41:55: warning: format '%X' expects argument of type 'unsigned int', but argument 5 has type 'uint32_t' {aka 'long unsigned int'} [-Wformat=]
+   41 |     snprintf(buf, sizeof(buf), "CAN%d: got a message %X\r\n", static_cast<int>(channel),
+      |                                                      ~^
+      |                                                       |
+      |                                                       unsigned int
+      |                                                      %lX
+   42 |                                                                 (msg.id));
+      |                                                                 ~~~~~~~~
+      |                                                                      |
+      |                                                                      uint32_t {aka long unsigned int}
+/home/asiia/Documents/work/nodes/can_adapter/src/peripheral/fdcan/fdcan.cpp: At global scope:
+/home/asiia/Documents/work/nodes/can_adapter/src/peripheral/fdcan/fdcan.cpp:32:49: warning: 'MessagesCircularBuffer<HAL::fdcan_message_t>* get_messages()' defined but not used [-Wunused-function]
+   32 | static MessagesCircularBuffer<fdcan_message_t>* get_messages() {
+      |                                                 ^~~~~~~~~~~~
+/home/asiia/Documents/work/nodes/can_adapter/stm_ioc/USB_Device/App/usbd_desc.c:141:1: warning: missing initializer for field 'GetBOSDescriptor' of 'USBD_DescriptorsTypeDef' [-Wmissing-field-initializers]
+  141 | };
+      | ^
+In file included from /home/asiia/Documents/work/nodes/can_adapter/stm_ioc/Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_core.h:29,
+                 from /home/asiia/Documents/work/nodes/can_adapter/stm_ioc/USB_Device/App/usbd_desc.c:22:
+/home/asiia/Documents/work/nodes/can_adapter/stm_ioc/Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_def.h:301:14: note: 'GetBOSDescriptor' declared here
+  301 |   uint8_t *(*GetBOSDescriptor)(USBD_SpeedTypeDef speed, uint16_t *length);
+      |              ^~~~~~~~~~~~~~~~
+Failed to parse flash type or unrecognized flash type
+make: *** [Makefile:17: upload] Error 255

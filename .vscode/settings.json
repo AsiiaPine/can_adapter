@@ -30,7 +30,9 @@
         "tuple": "cpp",
         "type_traits": "cpp",
         "utility": "cpp",
-        "*.inc": "cpp"
+        "*.inc": "cpp",
+        "istream": "cpp",
+        "numeric": "cpp"
     },
     "cortex-debug.variableUseNaturalFormat": false
 

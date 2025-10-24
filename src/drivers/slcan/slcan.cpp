@@ -209,8 +209,8 @@ int8_t SLCAN::send_can_to_usb(fdcan_message_t msg) {
         snprintf(data_hex + 2 * i, 3, "%02X", msg.data[i]);
     }
 
-    snprintf(data, sizeof(data), "cmd: %c id: %s\n len: %s data: %s\r\n",
-                        start_char, id_hex, dlc_str, data_hex);
+    snprintf(data, sizeof(data), "ch: %d cmd: %c id: %s\n len: %s data: %s\r\n",
+                        int(msg.channel), start_char, id_hex, dlc_str, data_hex);
     return HAL::USB::send_message(reinterpret_cast<uint8_t*>(data), sizeof(data));
 }
 
@@ -231,10 +231,20 @@ int8_t SLCAN::transmit_can_frame(slcan_frame_t frame) {
 void SLCAN::spin() {
     process_cmd_from_usb();
     fdcan_message_t test_msg;
+    static uint32_t last_time = HAL_GetTick();
+    char buf[] = "SLCAN Idle\r\n";
     if (HAL::FDCAN::receive_message(HAL::FDCANChannel::CHANNEL_1, test_msg) == 0) {
         send_can_to_usb(test_msg);
+        last_time = HAL_GetTick();
     }
+
     if (HAL::FDCAN::receive_message(HAL::FDCANChannel::CHANNEL_2, test_msg) == 0) {
         send_can_to_usb(test_msg);
+        last_time = HAL_GetTick();
+    }
+
+    if (HAL_GetTick() - last_time > 1000) {
+        HAL::USB::send_message(reinterpret_cast<uint8_t*>(buf), 12);
+        last_time = HAL_GetTick();
     }
 }
