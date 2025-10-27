@@ -1,0 +1,4 @@
+[submodule "stm_ioc"]
+    path = stm_ioc
+    url = https://github.com/AsiiaPine/can_adapter_ioc.git
+    branch = main
