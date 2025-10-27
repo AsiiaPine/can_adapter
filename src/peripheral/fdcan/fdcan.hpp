@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include "main.h"
 #include <cstdint>
 #include "common/curcular_buffer.hpp"
 
@@ -28,6 +27,9 @@ enum class FDCANChannel: uint8_t {
 
 class FDCAN {
  public:
+    static fdcan_message_t buffer[2][10];
+    static void stop(FDCANChannel channel);
+    static void start(FDCANChannel channel);
     static int8_t receive_message(HAL::FDCANChannel channel, HAL::fdcan_message_t& msg);
     static void send_message(HAL::fdcan_message_t *msg);
     static MessagesCircularBuffer<HAL::fdcan_message_t> messages[2];

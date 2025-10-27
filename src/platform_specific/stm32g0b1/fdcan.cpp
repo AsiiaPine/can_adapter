@@ -6,7 +6,7 @@
 
 
 #include <cstdio>
-#include "fdcan.hpp"
+#include "peripheral/fdcan/fdcan.hpp"
 #include "fdcan.h"
 #include "usbd_cdc_if.h"
 #include <stm32g0xx_hal_fdcan.h>
@@ -22,19 +22,33 @@ extern FDCAN_HandleTypeDef hfdcan2;
 void FDCAN::set_bitrate(uint32_t bitrate) {
     UNUSED(bitrate);
 }
+#define MAX_MESSAGES 10
+
+fdcan_message_t FDCAN::buffer[2][MAX_MESSAGES] = {{}};
 
 MessagesCircularBuffer<fdcan_message_t> FDCAN::messages[2] = {
-    MessagesCircularBuffer<fdcan_message_t>(10),  // Reduced buffer size for STM32G0B1
-    MessagesCircularBuffer<fdcan_message_t>(10)
+    MessagesCircularBuffer<fdcan_message_t>(MAX_MESSAGES, FDCAN::buffer[0]),
+    MessagesCircularBuffer<fdcan_message_t>(MAX_MESSAGES, FDCAN::buffer[1])
 };
 
-// Global access to messages for callback functions
-static MessagesCircularBuffer<fdcan_message_t>* get_messages() {
-    return FDCAN::messages;
+void FDCAN::stop(FDCANChannel channel) {
+    if (channel == FDCANChannel::CHANNEL_1) {
+        HAL_FDCAN_Stop(&hfdcan1);
+    } else if (channel == FDCANChannel::CHANNEL_2) {
+        HAL_FDCAN_Stop(&hfdcan2);
+    }
+}
+
+void FDCAN::start(FDCANChannel channel) {
+    if (channel == FDCANChannel::CHANNEL_1) {
+        HAL_FDCAN_Start(&hfdcan1);
+    } else if (channel == FDCANChannel::CHANNEL_2) {
+        HAL_FDCAN_Start(&hfdcan2);
+    }
 }
 
 int8_t FDCAN::receive_message(HAL::FDCANChannel channel, HAL::fdcan_message_t& msg) {
-    if (FDCAN::messages[static_cast<int>(channel) - 1].pop_last_message(&msg) < 0) {
+    if (FDCAN::messages[static_cast<int>(channel) - 1].pop_message(&msg) < 0) {
         return -1;
     }
     char buf[64];
@@ -126,27 +140,36 @@ void push_can_message(uint8_t channel, FDCAN_RxHeaderTypeDef *rx_header, uint8_t
     } else {
         msg.id = rx_header->Identifier & 0x7FF;
     }
+
+    // Skip messages with invalid ID
     if (msg.id == 0) {
         HAL_GPIO_TogglePin(INTERNAL_LED_RED_GPIO_Port, INTERNAL_LED_RED_Pin);
         return;
     }
+
     if (msg.isRemote)
         HAL_GPIO_TogglePin(INTERNAL_LED_RED_GPIO_Port, INTERNAL_LED_RED_Pin);
 
     msg.dlc = get_message_length(rx_header);
     msg.channel = channel;
 
+    // Validate DLC
+    if (msg.dlc > 8) {
+        HAL_GPIO_TogglePin(INTERNAL_LED_RED_GPIO_Port, INTERNAL_LED_RED_Pin);
+        return;  // Skip invalid messages
+    }
+
     // Copy data safely with bounds checking
-    uint8_t copy_len = (msg.dlc > 8) ? 8 : msg.dlc;
-    for (uint8_t i = 0; i < copy_len; i++) {
+    for (uint8_t i = 0; i < msg.dlc; i++) {
         msg.data[i] = data[i];
     }
 
     // Clear remaining bytes
-    for (uint8_t i = copy_len; i < 8; i++) {
+    for (uint8_t i = msg.dlc; i < 8; i++) {
         msg.data[i] = 0;
     }
 
+    // Only push valid messages
     HAL::FDCAN::messages[channel - 1].push_message(msg);
 }
 

@@ -19,19 +19,28 @@ int8_t USB::get_message(uint8_t *data, uint16_t len, char last_char) {
     if (messages.size == 0) {
         return -1;
     }
+
+    uint16_t bytes_read = 0;
     for (uint16_t i = 0; i < len; i++) {
-        if (messages.size == 0) {
-            return 0;
-        }
-        messages.pop_last_message(data + i);
-        if (data[i] == last_char) {
-            return 0;
-        }
-        if (data[i] == '\a') {
+        uint8_t byte;
+        if (messages.pop_message(&byte) != 0) {
+            // Error reading from buffer
             return -1;
         }
+
+        data[i] = byte;
+        bytes_read++;
+
+        if (byte == last_char) {
+            return 0;  // Successfully read complete message
+        }
+        if (byte == '\a') {
+            return -1;  // Error character received
+        }
     }
-    return 0;
+
+    // If we get here, we've read len bytes but didn't find the terminator
+    return bytes_read > 0 ? 0 : -1;
 }
 
 int8_t USB::send_message(uint8_t *data, uint16_t len) {

@@ -10,3 +10,7 @@ list(APPEND APPLICATION_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/application.cpp
 )
 include(${ROOT_DIR}/src/drivers/slcan/CMakeLists.txt)
+include(${ROOT_DIR}/src/peripheral/led/CMakeLists.txt)
+include(${ROOT_DIR}/src/peripheral/iwdg/CMakeLists.txt)
+
+include(${PLATFORM_DIR}/CMakeLists.txt)

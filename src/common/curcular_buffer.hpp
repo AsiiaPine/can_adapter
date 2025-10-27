@@ -5,50 +5,50 @@
  */
 
 #pragma once
+
 #include <cstring>
 #include <cstdint>
-#include "usbd_cdc_if.h"
-#include <vector>
+#include "main.h"
+
 
 template <typename T> class MessagesCircularBuffer {
  public:
-    explicit MessagesCircularBuffer(uint8_t maximum_size) : max_size(maximum_size) {
+    explicit MessagesCircularBuffer(uint8_t maximum_size, T *messages_buffer) :
+                                            max_size(maximum_size), messages(messages_buffer) {
         // Initialize the messages array to zero
         head_idx = 0;
         size = 0;
-        messages.resize(max_size);
     }
 
     inline void push_message(const T& message) {
         // Direct assignment instead of memcpy for better performance and safety
+        enterCriticalSection();
+
         messages[head_idx] = message;
         head_idx = (head_idx + 1) % max_size;
-        size = (size + 1) % max_size;
+        if (size < max_size)
+            size++;
+        exitCriticalSection();
     }
 
-    inline int8_t pop_last_message(T* message) {
+    inline int8_t pop_message(T* message) {
         if (size == 0) {
             return -1;
         }
-        if (size > max_size) {
-            size = 0;
-            head_idx = 0;
-            static char buf[] = {"Buffer underflow or overflow\r\n"};
-            CDC_Transmit_FS(reinterpret_cast<uint8_t*>(buf), 28);
-            return -2;
-        }
 
         uint8_t tail_idx = 0;
-        if (head_idx < size) {
+        if (head_idx >= size) {
+            //  |   | tail  | X | X | X | X | head  |   |
+            tail_idx = head_idx - size;
+        } else {
             //  | X | head  |   |   |   |   | tail  | X |
             tail_idx = max_size - size + head_idx;
-        } else {
-            //  |   | tail  | X | X | X | X | head  |   |
-            tail_idx = head_idx - size + 1;
         }
 
+        enterCriticalSection();
         *message = messages[tail_idx];
         size--;
+        exitCriticalSection();
         return 0;
     }
 
@@ -57,7 +57,25 @@ template <typename T> class MessagesCircularBuffer {
 
  private:
     uint8_t max_size;
-    std::vector<T> messages;
+    T *messages;
+    // per-instance property to track IRQ disable depth
+    static uint32_t irq_disable_depth;
+
     // Index of the next write position
     uint8_t head_idx = 0;
+
+    inline void enterCriticalSection() {
+        __disable_irq();
+        irq_disable_depth++;
+    }
+
+    inline void exitCriticalSection() {
+        if (irq_disable_depth > 0) {
+            irq_disable_depth--;
+            if (irq_disable_depth == 0)
+                __enable_irq();
+        }
+    }
 };
+
+template <typename T> uint32_t MessagesCircularBuffer<T>::irq_disable_depth = 0;

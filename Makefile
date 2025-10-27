@@ -3,15 +3,23 @@
 
 ROOT_DIR:=$(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
 BUILD_DIR:=$(ROOT_DIR)/build
+PLATFORM?=STM32G0B1
 
 all: clean default upload
 
-default: clean
-	mkdir -p $(BUILD_DIR)/obj
-	cd $(BUILD_DIR)/obj && cmake -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}  -G "Unix Makefiles" ../.. && make
+stm32g0b1: clean
+	mkdir -p $(BUILD_DIR)/STM32G0B1/obj
+	cd $(BUILD_DIR)/STM32G0B1/obj && cmake -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DPLATFORM=STM32G0B1 -G "Unix Makefiles" ../../.. && make
+
+ubuntu: clean
+	mkdir -p $(BUILD_DIR)/UBUNTU/obj
+	cd $(BUILD_DIR)/UBUNTU/obj && cmake -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DPLATFORM=UBUNTU -G "Unix Makefiles" ../../.. && make
 
 clean:
-	rm -rf $(BUILD_DIR)/obj
+	rm -rf $(BUILD_DIR)/${PLATFORM}/obj
 
 upload:
-	st-flash --reset write $(BUILD_DIR)/obj/node.bin 0x8000000
+	st-flash --reset write $(BUILD_DIR)/STM32G0B1/obj/node.bin 0x8000000
+
+run:
+	$(BUILD_DIR)/UBUNTU/obj/node

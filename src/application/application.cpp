@@ -5,13 +5,11 @@
  */
 
 #include "application.hpp"
-#include <usbd_cdc_if.h>
-#include "main.h"
 #include "peripheral/usb/usb.hpp"
-// #include "peripheral/fdcan/fdcan.hpp"
+#include "peripheral/iwdg/iwdg.hpp"
 #include "drivers/slcan/slcan.hpp"
+#include "peripheral/led/led.hpp"
 
-extern IWDG_HandleTypeDef hiwdg;
 uint8_t init_msg[] = "USB-CAN Adapter Ready\r\n";
 uint8_t test_msg[16] = {};
 HAL::fdcan_message_t test_msg2;
@@ -19,10 +17,8 @@ HAL::fdcan_message_t test_msg2;
 
 __attribute__((noreturn)) void application_entry_point() {
     // uint32_t last_time = HAL_GetTick();
-    HAL_GPIO_WritePin(INTERNAL_LED_BLUE_GPIO_Port, INTERNAL_LED_BLUE_Pin, GPIO_PIN_SET);
-    HAL_GPIO_WritePin(INTERNAL_LED_RED_GPIO_Port, INTERNAL_LED_RED_Pin, GPIO_PIN_SET);
-    HAL_GPIO_WritePin(INTERNAL_LED_GREEN_GPIO_Port, INTERNAL_LED_GREEN_Pin, GPIO_PIN_RESET);
-
+    HAL::LED::init();
+    HAL::WatchDog::init();
     while (true) {
         // HAL_GPIO_WritePin(INTERNAL_LED_RED_GPIO_Port, INTERNAL_LED_RED_Pin, GPIO_PIN_SET);
         // if (HAL_GetTick() - last_time > 1000) {
@@ -41,7 +37,7 @@ __attribute__((noreturn)) void application_entry_point() {
         // HAL::FDCAN::receive_message(HAL::FDCANChannel::CHANNEL_2, test_msg2);
         SLCAN::spin();
         // Feed watchdog
-        HAL_IWDG_Refresh(&hiwdg);
+        HAL::WatchDog::refresh();
     }
     // init_board_periphery();
     // ModuleManager::init();

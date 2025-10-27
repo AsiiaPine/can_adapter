@@ -4,30 +4,26 @@
  * Author: Anastasiia Stepanova <asiiapine@gmail.com>
  */
 
-#include "usbd_cdc_if.h"
 #include "main.h"
-#include "usb.hpp"
+#include "peripheral/usb/usb.hpp"
 #include "common/curcular_buffer.hpp"
 
-extern USBD_HandleTypeDef hUsbDeviceFS;
-
 /* USB RX/TX buffers and indices */
-MessagesCircularBuffer<uint8_t> HAL::USB::messages = MessagesCircularBuffer<uint8_t>(100);
+#define MAX_MESSAGES 100
+uint8_t HAL::USB::messages_buffer[MAX_MESSAGES] = {};
+MessagesCircularBuffer<uint8_t> HAL::USB::messages =
+                                    MessagesCircularBuffer<uint8_t>(MAX_MESSAGES, messages_buffer);
 
 /* HAL USBD_CDC functions */
 int8_t process_usb_command(uint8_t *data, uint16_t len) {
-  USBD_CDC_SetRxBuffer(&hUsbDeviceFS, data);
-  USBD_CDC_ReceivePacket(&hUsbDeviceFS);
-  for (uint16_t i = 0; i < len; i++) {
-    HAL::USB::messages.push_message(data[i]);
-  }
-
-  return USBD_OK;
+  (void)(data);
+  (void)(len);
+  return 0;
 }
 
 int8_t transmit_complete_callback(uint8_t *Buf, uint32_t *Len, uint8_t epnum) {
-  UNUSED(Buf);
-  UNUSED(Len);
-  UNUSED(epnum);
-  return USBD_OK;
+  (void)(Buf);
+  (void)(Len);
+  (void)(epnum);
+  return 0;
 }

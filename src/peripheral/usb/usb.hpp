@@ -7,7 +7,6 @@
 #pragma once
 
 #include <cstdint>
-#include "main.h"
 #include "common/curcular_buffer.hpp"
 
 namespace HAL {
@@ -18,5 +17,9 @@ class USB {
     static int8_t get_message(uint8_t *data, uint16_t len, char last_char = '\r');
     static int8_t send_message(uint8_t *data, uint16_t len);
     static MessagesCircularBuffer<uint8_t> messages;
+    static MessagesCircularBuffer<uint8_t> rx_messages;
+ private:
+    static uint8_t messages_buffer[100];
+    static uint8_t rx_messages_buffer[100];
 };
 }  // namespace HAL

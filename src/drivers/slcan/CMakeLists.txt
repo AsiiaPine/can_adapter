@@ -13,4 +13,4 @@ list(APPEND APPLICATION_SOURCES
 
 # Include peripheral sources (temporarily disabled due to HAL compatibility issues)
 include(${ROOT_DIR}/src/peripheral/usb/CMakeLists.txt)
-include(${ROOT_DIR}/src/peripheral/fdcan/CmakeLists.txt)
+include(${ROOT_DIR}/src/peripheral/fdcan/CMakeLists.txt)
