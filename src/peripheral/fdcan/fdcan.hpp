@@ -6,31 +6,34 @@
 
 #pragma once
 
-#include "main.h"
 #include <cstdint>
 #include "common/curcular_buffer.hpp"
 
 namespace HAL {
 
 typedef struct {
-  uint32_t id;
-  uint8_t dlc;
-  uint8_t data[8];
-  uint8_t channel;  // 1 for FDCAN1, 2 for FDCAN2
-  bool isExtended;
-  bool isRemote;
+  uint32_t id = 0;
+  uint8_t dlc = 0;
+  uint8_t data[8] = {0};
+  uint8_t channel = 0;  // 1 for FDCAN1, 2 for FDCAN2
+  uint8_t isExtended = 0;
+  uint8_t isRemote = 0;
 } fdcan_message_t;
 
 enum class FDCANChannel: uint8_t {
-  FDCAN1 = 1,
-  FDCAN2 = 2,
+  CHANNEL_1 = 1,
+  CHANNEL_2 = 2,
 };
 
 class FDCAN {
-    void receive_message(FDCANChannel channel);
-    void send_message(const fdcan_message_t &msg);
- private:
-    static MessagesCircularBuffer<fdcan_message_t> messages[2];
+ public:
+    static fdcan_message_t buffer[2][10];
+    static void stop(FDCANChannel channel);
+    static void start(FDCANChannel channel);
+    static int8_t receive_message(HAL::FDCANChannel channel, HAL::fdcan_message_t& msg);
+    static void send_message(HAL::fdcan_message_t *msg);
+    static MessagesCircularBuffer<HAL::fdcan_message_t> messages[2];
+    static void set_bitrate(uint32_t bitrate);
 };
 
-}  // namespace HAL
+};  // namespace HAL

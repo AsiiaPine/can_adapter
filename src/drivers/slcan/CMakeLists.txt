@@ -8,7 +8,9 @@ endif()
 set(SRC_DRIVERS_CAN_DIR ${CMAKE_CURRENT_LIST_DIR})
 
 list(APPEND APPLICATION_SOURCES
-    ${CMAKE_CURRENT_LIST_DIR}/slcan.c
+    ${CMAKE_CURRENT_LIST_DIR}/slcan.cpp
 )
 
-include(${ROOT_DIR}/Src/peripheral/usb/CMakeLists.txt)
+# Include peripheral sources (temporarily disabled due to HAL compatibility issues)
+include(${ROOT_DIR}/src/peripheral/usb/CMakeLists.txt)
+include(${ROOT_DIR}/src/peripheral/fdcan/CMakeLists.txt)

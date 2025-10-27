@@ -4,12 +4,13 @@
  * Author: Anastasiia Stepanova <asiiapine@gmail.com>
  */
 
-#pragma once
+#include "peripheral/iwdg/iwdg.hpp"
 
-typedef struct {
-  uint8_t command;
-  uint8_t channel;
-  uint8_t id[9];
-  uint8_t dlc;
-  uint8_t data[8];
-} slcan_frame_t;
+using HAL::WatchDog;
+
+void WatchDog::init() {
+}
+
+void WatchDog::refresh() {
+    // No watchdog in Ubuntu platform
+}

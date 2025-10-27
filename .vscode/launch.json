@@ -5,6 +5,29 @@
     "version": "0.2.0",
     "configurations": [
     {
+        "name": "Cortex Debug",
+        "cwd": "${workspaceFolder}",
+        "executable": "build/STM32G0B1/obj/node",
+        "request": "launch",
+        "type": "cortex-debug",
+        "runToEntryPoint": "main",
+        "showDevDebugOutput": "raw",
+        "servertype": "openocd", // Or "jlink"
+        "configFiles": [
+                "interface/stlink.cfg", // Or your interface config
+                "target/stm32g0x.cfg"    // Or your target config
+            ],
+    },
+    {
+        // Debug ubuntu version
+        "name": "Ubuntu Debug",
+        "cwd": "${workspaceFolder}",
+        // "executable": "build/obj/ubuntu",
+        "type": "cppdbg",
+        "request": "launch",
+        "program": "${workspaceFolder}/build/UBUNTU/obj/node",
+    },
+    {
         "name": "Simple Cortex Debug",
         "cwd": "${workspaceFolder}",
         "executable": "stm_ioc/build/stm_ioc.elf",
