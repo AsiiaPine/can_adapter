@@ -20,6 +20,20 @@ template <typename T> class MessagesCircularBuffer {
         size = 0;
     }
 
+    inline void push_messages(const T* data, uint8_t number_of_messages) {
+        if (head_idx + number_of_messages > max_size) {
+            // Wrap around
+            uint8_t first_part = max_size - head_idx;
+            memcpy(messages + head_idx, data, first_part);
+            memcpy(messages, data + first_part, number_of_messages - first_part);
+        } else {
+            memcpy(messages + head_idx, data, number_of_messages * sizeof(T));
+        }
+        head_idx = (head_idx + number_of_messages) % max_size;
+        size += number_of_messages;
+        size = size > max_size ? max_size : size;
+    }
+
     inline void push_message(const T& message) {
         // Direct assignment instead of memcpy for better performance and safety
         enterCriticalSection();

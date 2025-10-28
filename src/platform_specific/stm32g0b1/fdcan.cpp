@@ -52,9 +52,9 @@ int8_t FDCAN::receive_message(HAL::FDCANChannel channel, HAL::fdcan_message_t& m
         return -1;
     }
     char buf[64];
-    snprintf(buf, sizeof(buf), "CAN%d: got a message %X\r\n", static_cast<int>(channel),
-                                                                (msg.id));
-    CDC_Transmit_FS(reinterpret_cast<uint8_t*>(buf), strlen(buf));
+    // snprintf(buf, sizeof(buf), "CAN%d: got a message %X\r\n", static_cast<int>(channel),
+    //                                                             (msg.id));
+    // CDC_Transmit_FS(reinterpret_cast<uint8_t*>(buf), strlen(buf));
     return 0;
 }
 

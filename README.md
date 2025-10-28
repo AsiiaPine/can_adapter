@@ -18,4 +18,5 @@ This project is provided as-is for educational and development purposes. Modify 
 
 # TODO:
 
-- [ ] make two usb devices from here: one for swd, one for can
+- make two usb devices from here
+  https://community.st.com/t5/stm32-mcus-embedded-software/stm32f4-multi-instance-usb-cdc-device/td-p/357609

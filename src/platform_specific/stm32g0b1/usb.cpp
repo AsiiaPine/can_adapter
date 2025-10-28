@@ -32,10 +32,10 @@ int8_t USB::get_message(uint8_t *data, uint16_t len, char last_char) {
         bytes_read++;
 
         if (byte == last_char) {
-            return 0;  // Successfully read complete message
+            return bytes_read;  // Successfully read complete message
         }
         if (byte == '\a') {
-            return -1;  // Error character received
+            return -2;  // Error character received
         }
     }
 
