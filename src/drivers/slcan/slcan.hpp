@@ -47,10 +47,8 @@ enum SLCANBitrate: char {
 };
 
 typedef struct {
-  SLCANCommand command;
-  uint8_t id[9];
-  uint8_t dlc;
-  uint8_t data[8];
+  bool isExtended;
+  bool isRemote;
 } slcan_frame_t;
 
 
@@ -63,7 +61,7 @@ class SLCAN {
     static int8_t change_bitrate(char bitrate);
     static int8_t change_custom_bitrate(uint8_t time_quantum, uint8_t jump_width,
                                         uint8_t time_segment1, uint8_t time_segment2);
-    static int8_t transmit_can_frame(slcan_frame_t frame);
+    static int8_t transmit_can_frame(slcan_frame_t frame, uint8_t* data);
     static int8_t process_slcan_frame(char *data);
 };
 

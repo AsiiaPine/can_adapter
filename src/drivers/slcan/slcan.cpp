@@ -109,38 +109,43 @@ int8_t SLCAN::process_cmd_from_usb() {
     }
     case SLCANCommand::TRANSMIT_STANDART: {
         // Transmit standart frame
-        slcan_frame_t frame;
-        memcpy(&frame, data, sizeof(slcan_frame_t));
+        slcan_frame_t frame = {.isExtended = false, .isRemote = false};
+
         snprintf(buf, sizeof(buf), "ts\r");
-        return transmit_can_frame(frame);
+        return transmit_can_frame(frame, reinterpret_cast<uint8_t *>(data));
+
         USB::send_message((uint8_t*)buf, strlen(buf));
         break;
     }
     case SLCANCommand::TRANSMIT_EXTENDED: {
         // Transmit extended frame
-        slcan_frame_t frame;
-        memcpy(&frame, data, sizeof(slcan_frame_t));
+        slcan_frame_t frame = {.isExtended = true, .isRemote = false};
+
         snprintf(buf, sizeof(buf), "Te\r");
         USB::send_message((uint8_t*)buf, strlen(buf));
-        return transmit_can_frame(frame);
+        // return 0;
+        return transmit_can_frame(frame, reinterpret_cast<uint8_t *>(data));
+
         break;
     }
     case SLCANCommand::TRANSMIT_STANDART_RTR: {
         // Transmit standart RTR frame
-        slcan_frame_t frame;
-        memcpy(&frame, data, sizeof(slcan_frame_t));
+        slcan_frame_t frame = {.isExtended = false, .isRemote = true};
+
         snprintf(buf, sizeof(buf), "tsr\r");
         USB::send_message((uint8_t*)buf, strlen(buf));
-        return transmit_can_frame(frame);
+        return transmit_can_frame(frame, reinterpret_cast<uint8_t *>(data));
+
         break;
     }
     case SLCANCommand::TRANSMIT_EXTENDED_RTR: {
         // Transmit extended RTR frame
-        slcan_frame_t frame;
-        memcpy(&frame, data, sizeof(slcan_frame_t));
+        slcan_frame_t frame = {.isExtended = true, .isRemote = true};
+
         snprintf(buf, sizeof(buf), "Ter\r");
         USB::send_message((uint8_t*)buf, strlen(buf));
-        return transmit_can_frame(frame);
+
+        return transmit_can_frame(frame, reinterpret_cast<uint8_t *>(data));
         break;
     }
     case SLCANCommand::GET_STATUS: {
@@ -246,19 +251,25 @@ int8_t SLCAN::send_can_to_usb(fdcan_message_t msg) {
     return HAL::USB::send_message(reinterpret_cast<uint8_t*>(data), len);
 }
 
-int8_t SLCAN::transmit_can_frame(slcan_frame_t frame) {
-    fdcan_message_t msg;
-    msg.isExtended = frame.id[0] == 0x1;
-    msg.isRemote = frame.command == SLCANCommand::TRANSMIT_EXTENDED_RTR ||
-                   frame.command == SLCANCommand::TRANSMIT_STANDART_RTR;
-    msg.id = 0;
-    for (uint8_t i = 0; i < 8; i++) {
-        msg.id |= (frame.id[i] << (4 * (8 - 1 - i)));
+int8_t SLCAN::transmit_can_frame(slcan_frame_t frame, uint8_t* data) {
+    fdcan_message_t msg = { .channel = 2,
+                            .isExtended = frame.isExtended,
+                            .isRemote = frame.isRemote};
+
+    uint8_t id_len = frame.isExtended ? 8 : 3;
+    for (uint8_t i = 0; i < id_len; i++) {
+        msg.id <<= 4;
+        msg.id |= data[i + 1] - '0';
     }
-    msg.dlc = frame.dlc;
-    memcpy(msg.data, frame.data, frame.dlc);
+
+    msg.dlc = data[id_len + 1] - '0';
+
+    for (uint8_t i = 0; i < msg.dlc * 2; i++) {
+        msg.data[i/2] <<= 4 * (i % 2);
+        msg.data[i/2] |= data[id_len + 2 + i] - '0';
+    }
+
     HAL::FDCAN::send_message(&msg);
-    // return send_can_to_usb(msg);
 }
 
 void SLCAN::spin() {
