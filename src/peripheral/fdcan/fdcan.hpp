@@ -34,6 +34,8 @@ class FDCAN {
     static void send_message(HAL::fdcan_message_t *msg);
     static MessagesCircularBuffer<HAL::fdcan_message_t> messages[2];
     static void set_bitrate(uint32_t bitrate);
+    static void set_custom_bitrate(uint8_t time_quantum, uint8_t jump_width,
+                                    uint8_t time_segment1, uint8_t time_segment2);
 };
 
 };  // namespace HAL
