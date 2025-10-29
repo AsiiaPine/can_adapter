@@ -112,10 +112,8 @@ int8_t SLCAN::process_cmd_from_usb() {
         slcan_frame_t frame = {.isExtended = false, .isRemote = false};
 
         snprintf(buf, sizeof(buf), "ts\r");
-        return transmit_can_frame(frame, reinterpret_cast<uint8_t *>(data));
-
         USB::send_message((uint8_t*)buf, strlen(buf));
-        break;
+        return transmit_can_frame(frame, reinterpret_cast<uint8_t *>(data));
     }
     case SLCANCommand::TRANSMIT_EXTENDED: {
         // Transmit extended frame
@@ -229,7 +227,7 @@ int8_t SLCAN::send_can_to_usb(fdcan_message_t msg) {
     }
 
     // Format ID without newline
-    snprintf(id_hex, sizeof(id_hex), "%X", msg.id);
+    snprintf(id_hex, sizeof(id_hex), "%X", (unsigned int)msg.id);
 
     // Format DLC
     char dlc_str[3] = {};
@@ -252,6 +250,10 @@ int8_t SLCAN::send_can_to_usb(fdcan_message_t msg) {
 }
 
 int8_t SLCAN::transmit_can_frame(slcan_frame_t frame, uint8_t* data) {
+    if (data == nullptr) {
+        return -1;
+    }
+
     fdcan_message_t msg = { .channel = 2,
                             .isExtended = frame.isExtended,
                             .isRemote = frame.isRemote};
@@ -259,50 +261,54 @@ int8_t SLCAN::transmit_can_frame(slcan_frame_t frame, uint8_t* data) {
     uint8_t id_len = frame.isExtended ? 8 : 3;
     for (uint8_t i = 0; i < id_len; i++) {
         msg.id <<= 4;
-        msg.id |= data[i + 1] - '0';
+        msg.id |= charToUint8_t(data[i + 1]);
     }
 
-    msg.dlc = data[id_len + 1] - '0';
+    msg.dlc = charToUint8_t(data[id_len + 1]);
 
     for (uint8_t i = 0; i < msg.dlc * 2; i++) {
-        msg.data[i/2] <<= 4 * (i % 2);
-        msg.data[i/2] |= data[id_len + 2 + i] - '0';
+        if (i % 2 == 0) {
+            msg.data[i/2] = charToUint8_t(data[id_len + 2 + i]) << 4;
+        } else {
+            msg.data[i/2] |= charToUint8_t(data[id_len + 2 + i]);
+        }
     }
 
     HAL::FDCAN::send_message(&msg);
+    return 0;
 }
 
 void SLCAN::spin() {
     // Process USB commands first
     process_cmd_from_usb();
 
-    // static uint32_t last_time = HAL_GetTick();
-    // char buf[] = "SLCAN Idle\r\n";
+    static uint32_t last_time = HAL_GetTick();
+    char buf[] = "SLCAN Idle\r\n";
 
-    // fdcan_message_t test_msg = {0};  // Initialize to prevent garbage
+    fdcan_message_t test_msg = {0};  // Initialize to prevent garbage
 
-    // if (HAL_GetTick() - last_time > 1000) {
-    //     // Check channel 1
-    //     if (HAL::FDCAN::receive_message(HAL::FDCANChannel::CHANNEL_1, test_msg) == 0) {
-    //         // Validate message before sending
-    //         if (test_msg.id != 0 && test_msg.dlc <= 8) {
-    //             send_can_to_usb(test_msg);
-    //         }
-    //         last_time = HAL_GetTick();
-    //         return;
-    //     }
+    if (HAL_GetTick() - last_time > 1000) {
+        // Check channel 1
+        if (HAL::FDCAN::receive_message(HAL::FDCANChannel::CHANNEL_1, test_msg) == 0) {
+            // Validate message before sending
+            if (test_msg.id != 0 && test_msg.dlc <= 8) {
+                send_can_to_usb(test_msg);
+            }
+            last_time = HAL_GetTick();
+            return;
+        }
 
-    //     // Check channel 2
-    //     if (HAL::FDCAN::receive_message(HAL::FDCANChannel::CHANNEL_2, test_msg) == 0) {
-    //         // Validate message before sending
-    //         if (test_msg.id != 0 && test_msg.dlc <= 8) {
-    //             send_can_to_usb(test_msg);
-    //         }
-    //         last_time = HAL_GetTick();
-    //         return;
-    //     }
-    //     // Send idle message only if no valid messages were processed
-    //     HAL::USB::send_message(reinterpret_cast<uint8_t*>(buf), 12);
-    //     last_time = HAL_GetTick();
-    // }
+        // Check channel 2
+        if (HAL::FDCAN::receive_message(HAL::FDCANChannel::CHANNEL_2, test_msg) == 0) {
+            // Validate message before sending
+            if (test_msg.id != 0 && test_msg.dlc <= 8) {
+                send_can_to_usb(test_msg);
+            }
+            last_time = HAL_GetTick();
+            return;
+        }
+        // Send idle message only if no valid messages were processed
+        HAL::USB::send_message(reinterpret_cast<uint8_t*>(buf), 12);
+        last_time = HAL_GetTick();
+    }
 }

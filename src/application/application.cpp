@@ -20,7 +20,6 @@ __attribute__((noreturn)) void application_entry_point() {
     // uint32_t last_time = HAL_GetTick();
     HAL::LED::init();
     HAL::WatchDog::init();
-    uint8_t test_msg[16] = {};
     while (true) {
         // HAL::FDCAN::receive_message(HAL::FDCANChannel::CHANNEL_1, test_msg2);
         // HAL::FDCAN::receive_message(HAL::FDCANChannel::CHANNEL_2, test_msg2);

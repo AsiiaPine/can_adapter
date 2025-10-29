@@ -17,23 +17,34 @@ def test_dronecan():
         node.node.spin(0.1)
 
 def test_simple():
-    message = "T123456789ABCDEF\r"
+    message = "T0000010121133\r"
+    message_standard = "t10221133\r"
+    message_remote = "R000001032\r"
+    message_remote_standard = "r1042\r"
     # get serial port
-
+    messages = [message, message_standard, message_remote, message_remote_standard]
+    rec_messages = ['Te\r', 'ts\r', 'Ter\r', 'tsr\r']
     port = DeviceManager.get_device_port(True)
     # open serial port
     print(f"Opening serial port {port}")
     ser = serial.Serial(port, baudrate=1000000, timeout=1)
-    sleep(2)
+    i = 0
+
     while True:
-        message = f"T{int(time())}\r"
-        ser.write(message.encode(errors='ignore'))
-            # # read response
-        response = ser.read_all()
-        if response:
-            print(response)
-            # send message
+        i = (i + 1) % len(messages)
+
+        ser.write(messages[i].encode(errors='ignore'))
+        start_time = time()
+        got_message = False
+        while not got_message and time() - start_time < 0.0004:
+            response = ser.read_until(b'\r')
+            if response:
+                if response == rec_messages[i].encode(errors='ignore'):
+                    got_message = True
+                    print(f"Got message {response}")
+        assert got_message
         sleep(0.1)
+        
 
 if __name__ =="__main__":
     test_simple()
