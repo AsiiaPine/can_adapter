@@ -13,8 +13,9 @@
 
 template <typename T> class MessagesCircularBuffer {
  public:
-    explicit MessagesCircularBuffer(uint8_t maximum_size, T *messages_buffer) :
-                                            max_size(maximum_size), messages(messages_buffer) {
+    explicit MessagesCircularBuffer(
+                            uint8_t maximum_size, T *messages_buffer, IRQn_Type interrupt_line) :
+                max_size(maximum_size), messages(messages_buffer), interrupt_line(interrupt_line) {
         // Initialize the messages array to zero
         head_idx = 0;
         size = 0;
@@ -72,14 +73,17 @@ template <typename T> class MessagesCircularBuffer {
  private:
     uint8_t max_size;
     T *messages;
+
+    IRQn_Type interrupt_line;
+
     // per-instance property to track IRQ disable depth
-    static uint32_t irq_disable_depth;
+    uint32_t irq_disable_depth = 0;
 
     // Index of the next write position
     uint8_t head_idx = 0;
 
     inline void enterCriticalSection() {
-        __disable_irq();
+        HAL_NVIC_DisableIRQ(interrupt_line);
         irq_disable_depth++;
     }
 
@@ -87,9 +91,9 @@ template <typename T> class MessagesCircularBuffer {
         if (irq_disable_depth > 0) {
             irq_disable_depth--;
             if (irq_disable_depth == 0)
-                __enable_irq();
+                HAL_NVIC_EnableIRQ(interrupt_line);
         }
     }
 };
 
-template <typename T> uint32_t MessagesCircularBuffer<T>::irq_disable_depth = 0;
+// template <typename T> uint32_t MessagesCircularBuffer<T>::irq_disable_depth = 0;

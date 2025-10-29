@@ -16,7 +16,7 @@ extern USBD_HandleTypeDef hUsbDeviceFS;
 uint8_t HAL::USB::messages_buffer[MAX_MESSAGES] = {};
 
 MessagesCircularBuffer<uint8_t> HAL::USB::messages =
-                                    MessagesCircularBuffer<uint8_t>(MAX_MESSAGES, messages_buffer);
+            MessagesCircularBuffer<uint8_t>(MAX_MESSAGES, messages_buffer, USB_UCPD1_2_IRQn);
 
 /* HAL USBD_CDC functions */
 int8_t process_usb_command(uint8_t *data, uint16_t len) {

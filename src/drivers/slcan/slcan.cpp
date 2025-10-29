@@ -57,11 +57,7 @@ int8_t SLCAN::change_bitrate(char char_bitrate) {
 
 int8_t SLCAN::change_custom_bitrate(uint8_t time_quantum, uint8_t jump_width,
                                     uint8_t time_segment1, uint8_t time_segment2) {
-    // FDCAN::set_custom_bitrate(time_quantum, jump_width, time_segment1, time_segment2);
-    (void)(time_quantum);
-    (void)(jump_width);
-    (void)(time_segment1);
-    (void)(time_segment2);
+    FDCAN::set_custom_bitrate(time_quantum, jump_width, time_segment1, time_segment2);
     return 0;
 }
 

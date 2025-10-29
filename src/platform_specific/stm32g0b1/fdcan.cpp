@@ -26,8 +26,8 @@ uint8_t get_message_length(FDCAN_RxHeaderTypeDef *rx_header);
 fdcan_message_t FDCAN::buffer[2][MAX_MESSAGES] = {{}};
 
 MessagesCircularBuffer<fdcan_message_t> FDCAN::messages[2] = {
-    MessagesCircularBuffer<fdcan_message_t>(MAX_MESSAGES, FDCAN::buffer[0]),
-    MessagesCircularBuffer<fdcan_message_t>(MAX_MESSAGES, FDCAN::buffer[1])
+    MessagesCircularBuffer<fdcan_message_t>(MAX_MESSAGES, FDCAN::buffer[0], TIM16_FDCAN_IT0_IRQn),
+    MessagesCircularBuffer<fdcan_message_t>(MAX_MESSAGES, FDCAN::buffer[1], TIM16_FDCAN_IT0_IRQn)
 };
 
 void FDCAN::set_bitrate(uint32_t bitrate) {

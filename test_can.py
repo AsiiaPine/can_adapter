@@ -44,7 +44,7 @@ def test_simple():
                     print(f"Got message {response}")
         assert got_message
         sleep(0.1)
-        
+
 
 if __name__ =="__main__":
     test_simple()
