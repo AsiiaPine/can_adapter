@@ -107,9 +107,20 @@ int8_t SLCAN::process_cmd_from_usb() {
         // Transmit standart frame
         slcan_frame_t frame = {.isExtended = false, .isRemote = false};
 
-        snprintf(buf, sizeof(buf), "ts\r");
-        USB::send_message((uint8_t*)buf, strlen(buf));
+        // snprintf(buf, sizeof(buf), "ts\r");
+        // USB::send_message((uint8_t*)buf, strlen(buf));
         return transmit_can_frame(frame, reinterpret_cast<uint8_t *>(data));
+    }
+    case SLCANCommand::TRANSMIT_EXTENDED_ALT: {
+        // Transmit extended frame
+        slcan_frame_t frame = {.isExtended = true, .isRemote = false};
+
+        snprintf(buf, sizeof(buf), "tx\r");
+        USB::send_message((uint8_t*)buf, strlen(buf));
+        // return 0;
+        return transmit_can_frame(frame, reinterpret_cast<uint8_t *>(data));
+
+        break;
     }
     case SLCANCommand::TRANSMIT_EXTENDED: {
         // Transmit extended frame
