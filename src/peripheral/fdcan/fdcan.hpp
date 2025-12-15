@@ -29,6 +29,7 @@ typedef struct {
   uint8_t channel = 0;  // 1 for FDCAN1, 2 for FDCAN2
   uint8_t isExtended = 0;
   uint8_t isRemote = 0;
+  uint16_t timestamp = 0;
 } fdcan_message_t;
 
 enum class FDCANChannel: uint8_t {
