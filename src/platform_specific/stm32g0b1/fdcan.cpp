@@ -20,6 +20,7 @@ extern FDCAN_HandleTypeDef hfdcan1;
 extern FDCAN_HandleTypeDef hfdcan2;
 #define MAX_MESSAGES 10
 
+uint8_t FDCAN::status = 0;
 
 uint8_t get_message_length(FDCAN_RxHeaderTypeDef *rx_header);
 
@@ -96,7 +97,6 @@ void push_can_message(uint8_t channel, FDCAN_RxHeaderTypeDef *rx_header, uint8_t
     msg.isRemote   = (rx_header->RxFrameType != FDCAN_DATA_FRAME);
 
     if (msg.isExtended) {
-        HAL_GPIO_TogglePin(INTERNAL_LED_BLUE_GPIO_Port, INTERNAL_LED_BLUE_Pin);
         msg.id = rx_header->Identifier & 0x1FFFFFFF;
     } else {
         msg.id = rx_header->Identifier & 0x7FF;
@@ -107,9 +107,6 @@ void push_can_message(uint8_t channel, FDCAN_RxHeaderTypeDef *rx_header, uint8_t
         HAL_GPIO_TogglePin(INTERNAL_LED_RED_GPIO_Port, INTERNAL_LED_RED_Pin);
         return;
     }
-
-    if (msg.isRemote)
-        HAL_GPIO_TogglePin(INTERNAL_LED_RED_GPIO_Port, INTERNAL_LED_RED_Pin);
 
     msg.dlc = get_message_length(rx_header);
     msg.channel = channel;
@@ -151,6 +148,11 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
     if (hfdcan == &hfdcan2) {
         channel = 2;
     }
+    if (RxFifo0ITs & FDCAN_IT_RX_FIFO0_FULL == RESET) {
+        // RX FIFO 0 is full
+        FDCAN::status |= HAL::FDCAN_STATUS_BITS::RX_FIFO_FULL;
+        HAL_GPIO_TogglePin(INTERNAL_LED_RED_GPIO_Port, INTERNAL_LED_RED_Pin);
+    }
     if ((RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) == RESET) {
         return;
     }
@@ -169,6 +171,11 @@ void HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo1ITs)
     if (hfdcan == &hfdcan2) {
         channel = 2;
     }
+    if (RxFifo1ITs & FDCAN_IT_RX_FIFO1_FULL) {
+        // RX FIFO 0 is full
+        FDCAN::status |= HAL::FDCAN_STATUS_BITS::RX_FIFO_FULL;
+        HAL_GPIO_TogglePin(INTERNAL_LED_RED_GPIO_Port, INTERNAL_LED_RED_Pin);
+    }
     if ((RxFifo1ITs & FDCAN_IT_RX_FIFO1_NEW_MESSAGE) == RESET) {
         return;
     }
@@ -180,27 +187,44 @@ void HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo1ITs)
     push_can_message(channel, &rx_header, rx_data);
 }
 
-void HAL_FDCAN_TxEventFifoCallback(FDCAN_HandleTypeDef *hfdcan, uint32_t /*TxEventFifoITs*/) {
+void HAL_FDCAN_TxEventFifoCallback(FDCAN_HandleTypeDef *hfdcan, uint32_t TxEventFifoITs) {
     // Optional: Handle transmission events
-    // UNUSED(hfdcan);
     uint8_t error_msg[19];
-
-    if (hfdcan == &hfdcan1) {
-        // Toggle red LED to indicate CAN1 error
-        // HAL_GPIO_TogglePin(INTERNAL_LED_RED_GPIO_Port, INTERNAL_LED_RED_Pin);
-        // Send error message via USB
-        memcpy(error_msg, "Retransmit: CAN1\r\n", sizeof(error_msg));
-    } else if (hfdcan == &hfdcan2) {
-        // Toggle red LED to indicate CAN2 error
-        // HAL_GPIO_TogglePin(INTERNAL_LED_RED_GPIO_Port, INTERNAL_LED_RED_Pin);
-        // Send error message via USB
-        memcpy(error_msg, "Retransmit: CAN2\r\n", sizeof(error_msg));
+    if (TxEventFifoITs & FDCAN_IT_TX_EVT_FIFO_FULL) {
+        // Transmission event FIFO is full
+        FDCAN::status |= HAL::FDCAN_STATUS_BITS::TX_FIFO_FULL;
+    }
+    if (TxEventFifoITs & FDCAN_IT_TX_EVT_FIFO_ELT_LOST) {
+        // Transmission event lost
+    }
+    if (TxEventFifoITs & FDCAN_IT_TX_EVT_FIFO_NEW_DATA) {
+        // Transmission event occurred
+        if (hfdcan == &hfdcan1) {
+            // Toggle red LED to indicate CAN1 error
+            // HAL_GPIO_TogglePin(INTERNAL_LED_RED_GPIO_Port, INTERNAL_LED_RED_Pin);
+            // Send error message via USB
+            memcpy(error_msg, "Retransmit: CAN1\r\n", sizeof(error_msg));
+        } else if (hfdcan == &hfdcan2) {
+            // Toggle red LED to indicate CAN2 error
+            // HAL_GPIO_TogglePin(INTERNAL_LED_RED_GPIO_Port, INTERNAL_LED_RED_Pin);
+            // Send error message via USB
+            memcpy(error_msg, "Retransmit: CAN2\r\n", sizeof(error_msg));
+        }
     }
     CDC_Transmit_FS(error_msg, sizeof(error_msg) - 1);
 }
 
 void HAL_FDCAN_ErrorCallback(FDCAN_HandleTypeDef *hfdcan) {
     // Handle CAN errors
+    if (hfdcan->ErrorCode && FDCAN_IT_RAM_ACCESS_FAILURE) {
+        // Critical error: RAM access failure
+        FDCAN::status |= HAL::FDCAN_STATUS_BITS::DATA_OVERRUN;  // TODO: check correct status bit
+    }
+    if (hfdcan->ErrorCode && FDCAN_IR_PEA) {
+        // Bus off error
+        FDCAN::status |= HAL::FDCAN_STATUS_BITS::ARBITRATION_LOST;
+    }
+
     if (hfdcan == &hfdcan1) {
         // Toggle red LED to indicate CAN1 error
         // HAL_GPIO_TogglePin(INTERNAL_LED_RED_GPIO_Port, INTERNAL_LED_RED_Pin);
@@ -282,4 +306,20 @@ uint8_t get_message_length(FDCAN_RxHeaderTypeDef *rx_header) {
         return 64;
     }
     return 255;  // Invalid length
+}
+
+// Took from https://www.systemonchips.com/stm32h7-can-fd-communication-errors-and-troubleshooting-guide/
+void FDCAN::PrintCANStatus(void) {
+    uint32_t status = hfdcan1.Instance->PSR;
+    uint8_t status_bits = 0;
+    printf("CAN Status:\n");
+    if (status & FDCAN_PSR_EP) status_bits |= (1 << FDCAN_STATUS_BITS::ERROR_PASSIVE);
+    if (status & FDCAN_PSR_EW) status_bits |= (1 << FDCAN_STATUS_BITS::ERROR_WARNING);
+    if (status & FDCAN_PSR_BO) status_bits |= (1 << FDCAN_STATUS_BITS::BUS_ERROR);
+    printf(" Status: 0x%02X\n", status_bits);
+    printf("  Last Error Code: %lu\n", (status & FDCAN_PSR_LEC) >> FDCAN_PSR_LEC_Pos);
+    printf("  Activity: %s\n", (status & FDCAN_PSR_ACT) ? "Active" : "Inactive");
+    printf("  Error Passive: %s\n", (status & FDCAN_PSR_EP) ? "Yes" : "No");
+    printf("  Warning Status: %s\n", (status & FDCAN_PSR_EW) ? "Yes" : "No");
+    printf("  Bus Off: %s\n", (status & FDCAN_PSR_BO) ? "Yes" : "No");
 }
