@@ -22,6 +22,9 @@ template <typename T> class MessagesCircularBuffer {
     }
 
     inline void push_messages(const T* data, uint8_t number_of_messages) {
+        if (number_of_messages > max_size) {
+            number_of_messages = max_size;
+        }
         if (head_idx + number_of_messages > max_size) {
             // Wrap around
             uint8_t first_part = max_size - head_idx;
