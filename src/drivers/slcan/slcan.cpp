@@ -66,7 +66,7 @@ int8_t SLCAN::process_cmd_from_usb() {
     if (USB::get_message(reinterpret_cast<uint8_t*>(data),
                             sizeof(data), ENDChar::CHAR_SUCCESS) <= 0)
         return -1;
-    char buf[6];
+    char buf[7];
 
     switch (SLCANCommand(data[0])) {
     case SLCANCommand::SETUP_BITRATE_CMD: {
@@ -107,8 +107,8 @@ int8_t SLCAN::process_cmd_from_usb() {
         // Transmit standart frame
         slcan_frame_t frame = {.isExtended = false, .isRemote = false};
 
-        // snprintf(buf, sizeof(buf), "ts\r");
-        // USB::send_message((uint8_t*)buf, strlen(buf));
+        snprintf(buf, sizeof(buf), "ts\r");
+        USB::send_message((uint8_t*)buf, strlen(buf));
         return transmit_can_frame(frame, reinterpret_cast<uint8_t *>(data));
     }
     case SLCANCommand::TRANSMIT_EXTENDED_ALT: {
@@ -155,7 +155,7 @@ int8_t SLCAN::process_cmd_from_usb() {
     }
     case SLCANCommand::GET_STATUS: {
         // Get status
-        snprintf(buf, sizeof(buf), "get\r");
+        snprintf(buf, sizeof(buf), "F%02x\r", FDCAN::status);
         USB::send_message((uint8_t*)buf, strlen(buf));
         return 0;
         break;
@@ -294,28 +294,27 @@ void SLCAN::spin() {
 
     fdcan_message_t test_msg = {0};  // Initialize to prevent garbage
 
-    if (HAL_GetTick() - last_time > 1000) {
-        // Check channel 1
-        if (HAL::FDCAN::receive_message(HAL::FDCANChannel::CHANNEL_1, test_msg) == 0) {
-            // Validate message before sending
-            if (test_msg.id != 0 && test_msg.dlc <= 8) {
-                send_can_to_usb(test_msg);
-            }
-            last_time = HAL_GetTick();
-            return;
+    HAL::FDCAN::PrintCANStatus();
+    // Check channel 1
+    if (HAL::FDCAN::receive_message(HAL::FDCANChannel::CHANNEL_1, test_msg) == 0) {
+        // Validate message before sending
+        if (test_msg.id != 0 && test_msg.dlc <= 8) {
+            send_can_to_usb(test_msg);
         }
-
-        // Check channel 2
-        if (HAL::FDCAN::receive_message(HAL::FDCANChannel::CHANNEL_2, test_msg) == 0) {
-            // Validate message before sending
-            if (test_msg.id != 0 && test_msg.dlc <= 8) {
-                send_can_to_usb(test_msg);
-            }
-            last_time = HAL_GetTick();
-            return;
-        }
-        // Send idle message only if no valid messages were processed
-        HAL::USB::send_message(reinterpret_cast<uint8_t*>(buf), 12);
         last_time = HAL_GetTick();
+        return;
     }
+
+    // Check channel 2
+    if (HAL::FDCAN::receive_message(HAL::FDCANChannel::CHANNEL_2, test_msg) == 0) {
+        // Validate message before sending
+        if (test_msg.id != 0 && test_msg.dlc <= 8) {
+            send_can_to_usb(test_msg);
+        }
+        last_time = HAL_GetTick();
+        return;
+    }
+    // Send idle message only if no valid messages were processed
+    HAL::USB::send_message(reinterpret_cast<uint8_t*>(buf), 12);
+    last_time = HAL_GetTick();
 }
