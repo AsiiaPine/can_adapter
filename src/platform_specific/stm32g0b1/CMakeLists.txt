@@ -10,6 +10,7 @@ FILE(GLOB driversSources    ${stm32cubeMxProjectPath}/Drivers/*/*/*.c
                             ${stm32cubeMxProjectPath}/USB_Device/*/*.c
                             ${stm32cubeMxProjectPath}/Middlewares/*/*/*/*/*.c
                             ${stm32cubeMxProjectPath}/Middlewares/*/*/*/*/*/*.c
+                            ${stm32cubeMxProjectPath}/Middlewares/*/*/*/*/*/*/*.c
                             )
 FILE(GLOB startupFile       ${stm32cubeMxProjectPath}/*.s
                             ${stm32cubeMxProjectPath}/Core/Startup/*.s
@@ -21,6 +22,7 @@ add_executable(${EXECUTABLE}
     ${coreSources}
     ${driversSources}
     ${startupFile}
+    ${ROOT_DIR}/src/platform_specific/stm32g0b1/systemcalls.c
 )
 
 target_include_directories(${EXECUTABLE} PRIVATE
@@ -35,6 +37,7 @@ target_include_directories(${EXECUTABLE} PRIVATE
     ${stm32cubeMxProjectPath}/Drivers/STM32F1xx_HAL_Driver/Inc
     ${stm32cubeMxProjectPath}/Drivers/STM32F1xx_HAL_Driver/Inc/Legacy
     ${stm32cubeMxProjectPath}/Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Inc/
+    ${stm32cubeMxProjectPath}/Middlewares/ST/STM32_USB_Device_Library/Class/CompositeBuilder/Inc/
     ${stm32cubeMxProjectPath}/Middlewares/ST/STM32_USB_Device_Library/Core/Inc/
 
     ${stm32cubeMxProjectPath}/Drivers/CMSIS/Device/ST/STM32G0xx/Include

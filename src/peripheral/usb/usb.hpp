@@ -13,6 +13,10 @@ namespace HAL {
 
 class USB {
  public:
+    enum Channels: uint8_t {
+      USB_0 = 0,
+      USB_1 = 1,
+    };
     static void spin();
     static int8_t get_message(uint8_t *data, uint16_t len, char last_char = '\r');
     static int8_t send_message(uint8_t *data, uint16_t len);
