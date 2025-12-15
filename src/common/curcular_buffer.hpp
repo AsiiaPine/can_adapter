@@ -14,8 +14,8 @@
 template <typename T> class MessagesCircularBuffer {
  public:
     explicit MessagesCircularBuffer(
-                            uint8_t maximum_size, T *messages_buffer, IRQn_Type interrupt_line) :
-                max_size(maximum_size), messages(messages_buffer), interrupt_line(interrupt_line) {
+                            uint8_t maximum_size, T *messages_buffer, IRQn_Type IRQ_line) :
+                max_size(maximum_size), messages(messages_buffer), interrupt_line(IRQ_line) {
         // Initialize the messages array to zero
         head_idx = 0;
         size = 0;
