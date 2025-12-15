@@ -127,6 +127,7 @@ void push_can_message(uint8_t channel, FDCAN_RxHeaderTypeDef *rx_header, uint8_t
         msg.data[i] = 0;
     }
 
+    msg.timestamp = HAL_GetTick() % 60000;
     // Only push valid messages
     HAL::FDCAN::messages[channel - 1].push_message(msg);
 }

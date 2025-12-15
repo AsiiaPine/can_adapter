@@ -15,6 +15,8 @@ using HAL::FDCANChannel;
 using HAL::fdcan_message_t;
 using HAL::USB;
 
+bool SLCAN::timestamping = false;
+
 char SLCANCommand_to_char(SLCANCommand cmd) {
     return static_cast<char>(cmd);
 }
@@ -157,6 +159,7 @@ int8_t SLCAN::process_cmd_from_usb() {
         // Get status
         snprintf(buf, sizeof(buf), "F%02x\r", FDCAN::status);
         USB::send_message((uint8_t*)buf, strlen(buf));
+        FDCAN::PrintCANStatus();
         return 0;
         break;
     }
@@ -190,7 +193,14 @@ int8_t SLCAN::process_cmd_from_usb() {
     }
     case SLCANCommand::SET_TIMESTAMP_CMD: {
         // Set timestamp
-        snprintf(buf, sizeof(buf), "ts\r");
+        if (data[1] == '0') {
+            snprintf(buf, sizeof(buf), "ts0\r");
+            USB::send_message((uint8_t*)buf, strlen(buf));
+            timestamping = false;
+            return 0;
+        }
+        timestamping = true;
+        snprintf(buf, sizeof(buf), "ts1\r");
         USB::send_message((uint8_t*)buf, strlen(buf));
         return 0;
         break;
@@ -245,9 +255,14 @@ int8_t SLCAN::send_can_to_usb(fdcan_message_t msg) {
         snprintf(data_hex + 2 * i, 3, "%02X", msg.data[i]);
     }
 
+    char timestamp_str[5] = {0};
+    if (timestamping)
+        // Format timestamp
+        snprintf(timestamp_str, sizeof(timestamp_str), "%04X", static_cast<int>(msg.timestamp));
+
     // Format the complete message
-    int len = snprintf(data, sizeof(data), "%c%s%s%s\r",
-                        start_char, id_hex, dlc_str, data_hex);
+    int len = snprintf(data, sizeof(data), "%c%s%s%s%s\r",
+                        start_char, id_hex, dlc_str, data_hex, timestamp_str);
 
     if (len < 0 || static_cast<size_t>(len) >= sizeof(data)) {
         return -1;  // Formatting error
@@ -294,7 +309,7 @@ void SLCAN::spin() {
 
     fdcan_message_t test_msg = {0};  // Initialize to prevent garbage
 
-    HAL::FDCAN::PrintCANStatus();
+    // HAL::FDCAN::PrintCANStatus();
     // Check channel 1
     if (HAL::FDCAN::receive_message(HAL::FDCANChannel::CHANNEL_1, test_msg) == 0) {
         // Validate message before sending

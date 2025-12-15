@@ -68,6 +68,7 @@ class SLCAN {
                                         uint8_t time_segment1, uint8_t time_segment2);
     static int8_t transmit_can_frame(slcan_frame_t frame, uint8_t* data);
     static int8_t process_slcan_frame(char *data);
+    static bool timestamping;
 };
 
 #endif /* SLCAN_HPP_ */
