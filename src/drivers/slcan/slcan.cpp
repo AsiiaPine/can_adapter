@@ -20,6 +20,7 @@ bool SLCAN::timestamping = false;
 char SLCANCommand_to_char(SLCANCommand cmd) {
     return static_cast<char>(cmd);
 }
+
 int8_t SLCAN::change_bitrate(char char_bitrate) {
     uint32_t bitrate = 0;
     switch (char_bitrate) {
@@ -63,10 +64,10 @@ int8_t SLCAN::change_custom_bitrate(uint8_t time_quantum, uint8_t jump_width,
     return 0;
 }
 
-int8_t SLCAN::process_cmd_from_usb() {
+int8_t SLCAN::process_cmd_from_usb(uint8_t channel) {
     char data[40] = {};
     if (USB::get_message(reinterpret_cast<uint8_t*>(data),
-                            sizeof(data), ENDChar::CHAR_SUCCESS) <= 0)
+                            sizeof(data), ENDChar::CHAR_SUCCESS, channel) <= 0)
         return -1;
     char buf[7];
 
@@ -82,7 +83,7 @@ int8_t SLCAN::process_cmd_from_usb() {
         settings[2] = data[3];
         settings[3] = data[4];
         snprintf(buf, sizeof(buf), "set\r");
-        USB::send_message((uint8_t*)buf, strlen(buf));
+        USB::send_message((uint8_t*)buf, strlen(buf), channel);
         return change_custom_bitrate(settings[0], settings[1], settings[2], settings[3]);
         break;
     }
@@ -92,7 +93,7 @@ int8_t SLCAN::process_cmd_from_usb() {
         FDCAN::start(HAL::FDCANChannel::CHANNEL_1);
         FDCAN::start(HAL::FDCANChannel::CHANNEL_2);
         snprintf(buf, sizeof(buf), "open\r");
-        USB::send_message((uint8_t*)buf, strlen(buf));
+        USB::send_message((uint8_t*)buf, strlen(buf), channel);
         return 0;
         break;
     }
@@ -101,7 +102,7 @@ int8_t SLCAN::process_cmd_from_usb() {
         FDCAN::stop(FDCANChannel::CHANNEL_1);
         FDCAN::stop(FDCANChannel::CHANNEL_2);
         snprintf(buf, sizeof(buf), "close\r");
-        USB::send_message((uint8_t*)buf, strlen(buf));
+        USB::send_message((uint8_t*)buf, strlen(buf), channel);
         return 0;
         break;
     }
@@ -110,17 +111,17 @@ int8_t SLCAN::process_cmd_from_usb() {
         slcan_frame_t frame = {.isExtended = false, .isRemote = false};
 
         snprintf(buf, sizeof(buf), "ts\r");
-        USB::send_message((uint8_t*)buf, strlen(buf));
-        return transmit_can_frame(frame, reinterpret_cast<uint8_t *>(data));
+        USB::send_message((uint8_t*)buf, strlen(buf), channel);
+        return transmit_can_frame(frame, reinterpret_cast<uint8_t *>(data), channel);
     }
     case SLCANCommand::TRANSMIT_EXTENDED_ALT: {
         // Transmit extended frame
         slcan_frame_t frame = {.isExtended = true, .isRemote = false};
 
         snprintf(buf, sizeof(buf), "tx\r");
-        USB::send_message((uint8_t*)buf, strlen(buf));
+        USB::send_message((uint8_t*)buf, strlen(buf), channel);
         // return 0;
-        return transmit_can_frame(frame, reinterpret_cast<uint8_t *>(data));
+        return transmit_can_frame(frame, reinterpret_cast<uint8_t *>(data), channel);
 
         break;
     }
@@ -129,9 +130,9 @@ int8_t SLCAN::process_cmd_from_usb() {
         slcan_frame_t frame = {.isExtended = true, .isRemote = false};
 
         snprintf(buf, sizeof(buf), "Te\r");
-        USB::send_message((uint8_t*)buf, strlen(buf));
+        USB::send_message((uint8_t*)buf, strlen(buf), channel);
         // return 0;
-        return transmit_can_frame(frame, reinterpret_cast<uint8_t *>(data));
+        return transmit_can_frame(frame, reinterpret_cast<uint8_t *>(data), channel);
 
         break;
     }
@@ -140,8 +141,8 @@ int8_t SLCAN::process_cmd_from_usb() {
         slcan_frame_t frame = {.isExtended = false, .isRemote = true};
 
         snprintf(buf, sizeof(buf), "tsr\r");
-        USB::send_message((uint8_t*)buf, strlen(buf));
-        return transmit_can_frame(frame, reinterpret_cast<uint8_t *>(data));
+        USB::send_message((uint8_t*)buf, strlen(buf), channel);
+        return transmit_can_frame(frame, reinterpret_cast<uint8_t *>(data), channel);
 
         break;
     }
@@ -150,15 +151,15 @@ int8_t SLCAN::process_cmd_from_usb() {
         slcan_frame_t frame = {.isExtended = true, .isRemote = true};
 
         snprintf(buf, sizeof(buf), "Ter\r");
-        USB::send_message((uint8_t*)buf, strlen(buf));
+        USB::send_message((uint8_t*)buf, strlen(buf), channel);
 
-        return transmit_can_frame(frame, reinterpret_cast<uint8_t *>(data));
+        return transmit_can_frame(frame, reinterpret_cast<uint8_t *>(data), channel);
         break;
     }
     case SLCANCommand::GET_STATUS: {
         // Get status
         snprintf(buf, sizeof(buf), "F%02x\r", FDCAN::status);
-        USB::send_message((uint8_t*)buf, strlen(buf));
+        USB::send_message((uint8_t*)buf, strlen(buf), channel);
         FDCAN::PrintCANStatus();
         return 0;
         break;
@@ -166,28 +167,28 @@ int8_t SLCAN::process_cmd_from_usb() {
     case SLCANCommand::ACCEPTANCE_CODE: {
         // Set acceptance code
         snprintf(buf, sizeof(buf), "acc\r");
-        USB::send_message((uint8_t*)buf, strlen(buf));
+        USB::send_message((uint8_t*)buf, strlen(buf), channel);
         return 0;
         break;
     }
     case SLCANCommand::ACCEPTANCE_MASK: {
         // Set acceptance mask
         snprintf(buf, sizeof(buf), "am\r");
-        USB::send_message((uint8_t*)buf, strlen(buf));
+        USB::send_message((uint8_t*)buf, strlen(buf), channel);
         return 0;
         break;
     }
     case SLCANCommand::GET_VERSION: {
         // Get version
         snprintf(buf, sizeof(buf), "ver\r");
-        USB::send_message((uint8_t*)buf, strlen(buf));
+        USB::send_message((uint8_t*)buf, strlen(buf), channel);
         return 0;
         break;
     }
     case SLCANCommand::SERIAL_NUMBER: {
         // Get serial number
         snprintf(buf, sizeof(buf), "ser\r");
-        USB::send_message((uint8_t*)buf, strlen(buf));
+        USB::send_message((uint8_t*)buf, strlen(buf), channel);
         return 0;
         break;
     }
@@ -195,20 +196,20 @@ int8_t SLCAN::process_cmd_from_usb() {
         // Set timestamp
         if (data[1] == '0') {
             snprintf(buf, sizeof(buf), "ts0\r");
-            USB::send_message((uint8_t*)buf, strlen(buf));
+            USB::send_message((uint8_t*)buf, strlen(buf), channel);
             timestamping = false;
             return 0;
         }
         timestamping = true;
         snprintf(buf, sizeof(buf), "ts1\r");
-        USB::send_message((uint8_t*)buf, strlen(buf));
+        USB::send_message((uint8_t*)buf, strlen(buf), channel);
         return 0;
         break;
     }
     default: {
         // Unknown command
         snprintf(buf, sizeof(buf), "unk\r");
-        USB::send_message((uint8_t*)buf, strlen(buf));
+        USB::send_message((uint8_t*)buf, strlen(buf), channel);
         return -1;
     }
     }
@@ -268,15 +269,15 @@ int8_t SLCAN::send_can_to_usb(fdcan_message_t msg) {
         return -1;  // Formatting error
     }
 
-    return HAL::USB::send_message(reinterpret_cast<uint8_t*>(data), len);
+    return HAL::USB::send_message(reinterpret_cast<uint8_t*>(data), len, msg.channel);
 }
 
-int8_t SLCAN::transmit_can_frame(slcan_frame_t frame, uint8_t* data) {
+int8_t SLCAN::transmit_can_frame(slcan_frame_t frame, uint8_t* data, uint8_t channel) {
     if (data == nullptr) {
         return -1;
     }
 
-    fdcan_message_t msg = { .channel = 2,
+    fdcan_message_t msg = { .channel = channel,
                             .isExtended = frame.isExtended,
                             .isRemote = frame.isRemote};
 
@@ -302,7 +303,8 @@ int8_t SLCAN::transmit_can_frame(slcan_frame_t frame, uint8_t* data) {
 
 void SLCAN::spin() {
     // Process USB commands first
-    process_cmd_from_usb();
+    process_cmd_from_usb(USB::Channels::USB_0);
+    process_cmd_from_usb(USB::Channels::USB_1);
 
     static uint32_t last_time = HAL_GetTick();
     char buf[] = "SLCAN Idle\r\n";
@@ -329,7 +331,10 @@ void SLCAN::spin() {
         last_time = HAL_GetTick();
         return;
     }
+    if (HAL_GetTick() - last_time < 100)
+        return;
     // Send idle message only if no valid messages were processed
-    HAL::USB::send_message(reinterpret_cast<uint8_t*>(buf), 12);
+    HAL::USB::send_message(reinterpret_cast<uint8_t*>(buf), 12, 1);
+    HAL::USB::send_message(reinterpret_cast<uint8_t*>(buf), 12, 2);
     last_time = HAL_GetTick();
 }

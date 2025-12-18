@@ -10,8 +10,8 @@
 #include "drivers/slcan/slcan.hpp"
 #include "peripheral/led/led.hpp"
 #include "main.h"
-
-uint8_t init_msg[] = "USB-CAN Adapter Ready\r\n";
+#include "usbd_cdc_if.h"
+uint8_t init_msg[] = "USB-CAN Adapter Ready\n";
 uint8_t test_msg[16] = {};
 HAL::fdcan_message_t test_msg2;
 
@@ -21,9 +21,17 @@ __attribute__((noreturn)) void application_entry_point() {
     HAL::LED::init();
     HAL::WatchDog::init();
     while (true) {
-        // HAL::FDCAN::receive_message(HAL::FDCANChannel::CHANNEL_1, test_msg2);
-        // HAL::FDCAN::receive_message(HAL::FDCANChannel::CHANNEL_2, test_msg2);
+        // if (HAL_GetTick() - last_time > 1000) {
+        //     // CDC_Transmit_FS_EndPoint((uint8_t*)"A\n", 2, 0);
+        //     // CDC_Transmit_FS_EndPoint((uint8_t*)"B\n", 2, 1);
+        //     // CDC_Send(0, (uint8_t*)"A\n", 2);
+        //     // CDC_Send(1, (uint8_t*)"B\n", 2);
+        //     last_time = HAL_GetTick();
+        // }
+
         SLCAN::spin();
+
+        CDC_TxScheduler();
         // Feed watchdog
         HAL::WatchDog::refresh();
     }

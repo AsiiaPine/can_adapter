@@ -16,12 +16,13 @@ class USB {
     enum Channels: uint8_t {
       USB_0 = 0,
       USB_1 = 1,
+      NUM_CHANNELS = 2
     };
     static void spin();
-    static int8_t get_message(uint8_t *data, uint16_t len, char last_char = '\r');
-    static int8_t send_message(uint8_t *data, uint16_t len);
-    static MessagesCircularBuffer<uint8_t> messages;
+    static int8_t get_message(uint8_t *data, uint16_t len, char last_char = '\r', uint8_t channel = USB_0);
+    static int8_t send_message(uint8_t *data, uint16_t len, uint8_t channel);
+    static MessagesCircularBuffer<uint8_t> messages[2];
  private:
-    static uint8_t messages_buffer[100];
+    static uint8_t messages_buffer[2][100];
 };
 }  // namespace HAL

@@ -63,10 +63,10 @@ template <typename T> class MessagesCircularBuffer {
             tail_idx = max_size - size + head_idx;
         }
 
-        enterCriticalSection();
+        // enterCriticalSection();
         *message = messages[tail_idx];
         size--;
-        exitCriticalSection();
+        // exitCriticalSection();
         return 0;
     }
 

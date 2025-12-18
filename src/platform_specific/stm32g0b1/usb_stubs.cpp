@@ -9,21 +9,8 @@
 #include "peripheral/usb/usb.hpp"
 #include "common/curcular_buffer.hpp"
 
-extern USBD_HandleTypeDef hUsbDeviceFS;
-
-/* USB RX/TX buffers and indices */
-#define MAX_MESSAGES 100
-uint8_t HAL::USB::messages_buffer[MAX_MESSAGES] = {};
-
-MessagesCircularBuffer<uint8_t> HAL::USB::messages =
-            MessagesCircularBuffer<uint8_t>(MAX_MESSAGES, messages_buffer, USB_UCPD1_2_IRQn);
-
-/* HAL USBD_CDC functions */
-int8_t process_usb_command(uint8_t *data, uint16_t len) {
-  USBD_CDC_SetRxBuffer(&hUsbDeviceFS, data);
-  USBD_CDC_ReceivePacket(&hUsbDeviceFS);
-  HAL::USB::messages.push_messages(data, len);
-
+int8_t process_usb_command(uint8_t *data, uint16_t len, uint8_t ClassId) {
+  HAL::USB::messages[ClassId].push_messages(data, len);
   return USBD_OK;
 }
 
