@@ -11,6 +11,17 @@
 
 namespace HAL {
 
+enum FDCAN_STATUS_BITS: uint8_t {
+  RX_FIFO_FULL   = 0,
+  TX_FIFO_FULL   = 1,
+  ERROR_WARNING  = 2,
+  DATA_OVERRUN   = 3,
+  NO_CHANGE      = 4,
+  ERROR_PASSIVE  = 5,
+  ARBITRATION_LOST = 6,
+  BUS_ERROR      = 7,
+};
+
 typedef struct {
   uint32_t id = 0;
   uint8_t dlc = 0;
@@ -18,6 +29,7 @@ typedef struct {
   uint8_t channel = 0;  // 1 for FDCAN1, 2 for FDCAN2
   uint8_t isExtended = 0;
   uint8_t isRemote = 0;
+  uint16_t timestamp = 0;
 } fdcan_message_t;
 
 enum class FDCANChannel: uint8_t {
@@ -27,6 +39,7 @@ enum class FDCANChannel: uint8_t {
 
 class FDCAN {
  public:
+    static uint8_t status;
     static fdcan_message_t buffer[2][10];
     static void stop(FDCANChannel channel);
     static void start(FDCANChannel channel);
@@ -34,6 +47,9 @@ class FDCAN {
     static void send_message(HAL::fdcan_message_t *msg);
     static MessagesCircularBuffer<HAL::fdcan_message_t> messages[2];
     static void set_bitrate(uint32_t bitrate);
+    static void set_custom_bitrate(uint8_t time_quantum, uint8_t jump_width,
+                                    uint8_t time_segment1, uint8_t time_segment2);
+    static void PrintCANStatus(void);
 };
 
 };  // namespace HAL

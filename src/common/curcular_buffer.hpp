@@ -13,11 +13,29 @@
 
 template <typename T> class MessagesCircularBuffer {
  public:
-    explicit MessagesCircularBuffer(uint8_t maximum_size, T *messages_buffer) :
-                                            max_size(maximum_size), messages(messages_buffer) {
+    explicit MessagesCircularBuffer(
+                            uint8_t maximum_size, T *messages_buffer, IRQn_Type IRQ_line) :
+                max_size(maximum_size), messages(messages_buffer), interrupt_line(IRQ_line) {
         // Initialize the messages array to zero
         head_idx = 0;
         size = 0;
+    }
+
+    inline void push_messages(const T* data, uint8_t number_of_messages) {
+        if (number_of_messages > max_size) {
+            number_of_messages = max_size;
+        }
+        if (head_idx + number_of_messages > max_size) {
+            // Wrap around
+            uint8_t first_part = max_size - head_idx;
+            memcpy(messages + head_idx, data, first_part);
+            memcpy(messages, data + first_part, number_of_messages - first_part);
+        } else {
+            memcpy(messages + head_idx, data, number_of_messages * sizeof(T));
+        }
+        head_idx = (head_idx + number_of_messages) % max_size;
+        size += number_of_messages;
+        size = size > max_size ? max_size : size;
     }
 
     inline void push_message(const T& message) {
@@ -45,10 +63,10 @@ template <typename T> class MessagesCircularBuffer {
             tail_idx = max_size - size + head_idx;
         }
 
-        enterCriticalSection();
+        // enterCriticalSection();
         *message = messages[tail_idx];
         size--;
-        exitCriticalSection();
+        // exitCriticalSection();
         return 0;
     }
 
@@ -58,14 +76,17 @@ template <typename T> class MessagesCircularBuffer {
  private:
     uint8_t max_size;
     T *messages;
+
+    IRQn_Type interrupt_line;
+
     // per-instance property to track IRQ disable depth
-    static uint32_t irq_disable_depth;
+    uint32_t irq_disable_depth = 0;
 
     // Index of the next write position
     uint8_t head_idx = 0;
 
     inline void enterCriticalSection() {
-        __disable_irq();
+        HAL_NVIC_DisableIRQ(interrupt_line);
         irq_disable_depth++;
     }
 
@@ -73,9 +94,9 @@ template <typename T> class MessagesCircularBuffer {
         if (irq_disable_depth > 0) {
             irq_disable_depth--;
             if (irq_disable_depth == 0)
-                __enable_irq();
+                HAL_NVIC_EnableIRQ(interrupt_line);
         }
     }
 };
 
-template <typename T> uint32_t MessagesCircularBuffer<T>::irq_disable_depth = 0;
+// template <typename T> uint32_t MessagesCircularBuffer<T>::irq_disable_depth = 0;
