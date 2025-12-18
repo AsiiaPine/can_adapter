@@ -58,6 +58,9 @@ int8_t USB::send_message(uint8_t *data, uint16_t len, uint8_t channel) {
     if (channel >= Channels::NUM_CHANNELS) {
         return -1;
     }
+    if (len == 0) {
+        return 0;
+    }
     CDC_Send(channel, data, len);
     return HAL_OK;
 }
