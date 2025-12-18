@@ -11,6 +11,7 @@
 #include "usbd_cdc_if.h"
 #include <stm32g0xx_hal_fdcan.h>
 #include "main.h"
+#include "peripheral/usb/usb.hpp"
 
 using HAL::FDCAN;
 using HAL::FDCANChannel;
@@ -226,23 +227,15 @@ void HAL_FDCAN_ErrorCallback(FDCAN_HandleTypeDef *hfdcan) {
         FDCAN::status |= HAL::FDCAN_STATUS_BITS::ARBITRATION_LOST;
     }
 
-    if (hfdcan == &hfdcan1) {
-        // Toggle red LED to indicate CAN1 error
-        // HAL_GPIO_TogglePin(INTERNAL_LED_RED_GPIO_Port, INTERNAL_LED_RED_Pin);
-        // Send error message via USB
-        uint8_t error_msg[] = "CAN1 Error\r\n";
-        CDC_Transmit_FS(error_msg, sizeof(error_msg) - 1);
-    } else if (hfdcan == &hfdcan2) {
-        // Toggle red LED to indicate CAN2 error
-        // HAL_GPIO_TogglePin(INTERNAL_LED_RED_GPIO_Port, INTERNAL_LED_RED_Pin);
-        // Send error message via USB
-        uint8_t error_msg[] = "CAN2 Error\r\n";
-        CDC_Transmit_FS(error_msg, sizeof(error_msg) - 1);
-    }
     uint8_t error_msg[19];
+    uint8_t channel = 0;
+    if (hfdcan == &hfdcan1) {
+    } else if (hfdcan == &hfdcan2) {
+        channel = 1;
+    }
     snprintf(reinterpret_cast<char*>(error_msg), sizeof(error_msg),
                                 "CAN Error %d\r\n", static_cast<int>(hfdcan->ErrorCode));
-    CDC_Transmit_FS(error_msg, sizeof(error_msg) - 1);
+    HAL::USB::send_message(error_msg, sizeof(error_msg) - 1, channel);
 }
 
 void HAL_FDCAN_ErrorStatusCallback(FDCAN_HandleTypeDef *hfdcan, uint32_t ErrorStatusITs)
