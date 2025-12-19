@@ -42,13 +42,13 @@ class FDCAN {
  public:
     static uint8_t status;
     static fdcan_message_t buffer[2][10];
-    static void stop(FDCANChannel channel);
-    static void start(FDCANChannel channel);
+    static int8_t stop(FDCANChannel channel);
+    static int8_t start(FDCANChannel channel);
     static int8_t receive_message(HAL::FDCANChannel channel, HAL::fdcan_message_t& msg);
     static void send_message(HAL::fdcan_message_t *msg);
     static MessagesCircularBuffer<HAL::fdcan_message_t> messages[2];
-    static void set_bitrate(uint8_t channel, uint32_t bitrate);
-    static void set_custom_bitrate(uint8_t channel, uint8_t time_quantum, uint8_t jump_width,
+    static int8_t set_bitrate(uint8_t channel, uint32_t bitrate);
+    static int8_t set_custom_bitrate(uint8_t channel, uint8_t time_quantum, uint8_t jump_width,
                                     uint8_t time_segment1, uint8_t time_segment2);
     static void PrintCANStatus(void);
 };

@@ -15,7 +15,7 @@ using HAL::FDCANChannel;
 using HAL::fdcan_message_t;
 using HAL::USB;
 
-bool SLCAN::timestamping = false;
+bool SLCAN::timestamping[FDCANChannel::NUM_CHANNELS] = {false};
 
 char SLCANCommand_to_char(SLCANCommand cmd) {
     return static_cast<char>(cmd);
@@ -60,8 +60,7 @@ int8_t SLCAN::change_bitrate(uint8_t channel, char char_bitrate) {
 
 int8_t SLCAN::change_custom_bitrate(uint8_t channel, uint8_t time_quantum, uint8_t jump_width,
                                     uint8_t time_segment1, uint8_t time_segment2) {
-    FDCAN::set_custom_bitrate(channel, time_quantum, jump_width, time_segment1, time_segment2);
-    return 0;
+    return FDCAN::set_custom_bitrate(channel, time_quantum, jump_width, time_segment1, time_segment2);
 }
 
 int8_t SLCAN::process_cmd_from_usb(uint8_t channel) {
@@ -69,12 +68,52 @@ int8_t SLCAN::process_cmd_from_usb(uint8_t channel) {
     if (USB::get_message(data,
                             sizeof(data), ENDChar::CHAR_SUCCESS, channel) <= 0)
         return -1;
-    char buf[7];
-    uint8_t uint8_buf[7];
-
+    uint8_t uint8_buf[1] = {0};
+    int8_t ret = 0;
     switch (SLCANCommand(data[0])) {
+    case SLCANCommand::TRANSMIT_STANDART: {
+        // Transmit standart frame
+        slcan_frame_t frame = {.isExtended = false, .isRemote = false};
+        ret = transmit_can_frame(frame, data, channel);
+        break;
+    }
+    case SLCANCommand::TRANSMIT_EXTENDED_ALT: {
+        // Transmit extended frame
+        slcan_frame_t frame = {.isExtended = true, .isRemote = false};
+        ret = transmit_can_frame(frame, data, channel);
+        break;
+    }
+    case SLCANCommand::TRANSMIT_EXTENDED: {
+        // Transmit extended frame
+        slcan_frame_t frame = {.isExtended = true, .isRemote = false};
+        ret = transmit_can_frame(frame, data, channel);
+        break;
+    }
+    case SLCANCommand::TRANSMIT_STANDART_RTR: {
+        // Transmit standart RTR frame
+        slcan_frame_t frame = {.isExtended = false, .isRemote = true};
+        ret = transmit_can_frame(frame, data, channel);
+        break;
+    }
+    case SLCANCommand::TRANSMIT_EXTENDED_RTR: {
+        // Transmit extended RTR frame
+        slcan_frame_t frame = {.isExtended = true, .isRemote = true};
+        ret = transmit_can_frame(frame, data, channel);
+        break;
+    }
+    case SLCANCommand::OPEN_CHANNEL: {
+        // Open CAN channels
+        ret = FDCAN::start(HAL::FDCANChannel(channel));
+        break;
+    }
+    case SLCANCommand::CLOSE_CHANNEL: {
+        // Close CAN channels
+        ret = FDCAN::stop(HAL::FDCANChannel(channel));
+        break;
+    }
     case SLCANCommand::SETUP_BITRATE_CMD: {
-        return change_bitrate(channel, data[1]);
+        ret = change_bitrate(channel, data[1]);
+        break;
     }
     case SLCANCommand::SETUP_CUSTOM_BITRATE_CMD: {
         uint8_t settings[4] = {};
@@ -82,95 +121,63 @@ int8_t SLCAN::process_cmd_from_usb(uint8_t channel) {
         settings[1] = data[2];
         settings[2] = data[3];
         settings[3] = data[4];
-        return change_custom_bitrate(channel, settings[0], settings[1], settings[2], settings[3]);
-    }
-
-    case SLCANCommand::OPEN_CHANNEL: {
-        // Open CAN channels
-        FDCAN::start(HAL::FDCANChannel::CHANNEL_1);
-        FDCAN::start(HAL::FDCANChannel::CHANNEL_2);
-        return 0;
-    }
-
-    case SLCANCommand::CLOSE_CHANNEL: {
-        // Close CAN channels
-        FDCAN::stop(FDCANChannel::CHANNEL_1);
-        FDCAN::stop(FDCANChannel::CHANNEL_2);
-        return 0;
-    }
-    case SLCANCommand::TRANSMIT_STANDART: {
-        // Transmit standart frame
-        slcan_frame_t frame = {.isExtended = false, .isRemote = false};
-        return transmit_can_frame(frame, data, channel);
-    }
-    case SLCANCommand::TRANSMIT_EXTENDED_ALT: {
-        // Transmit extended frame
-        slcan_frame_t frame = {.isExtended = true, .isRemote = false};
-        return transmit_can_frame(frame, data, channel);
-    }
-    case SLCANCommand::TRANSMIT_EXTENDED: {
-        // Transmit extended frame
-        slcan_frame_t frame = {.isExtended = true, .isRemote = false};
-        return transmit_can_frame(frame, data, channel);
-    }
-    case SLCANCommand::TRANSMIT_STANDART_RTR: {
-        // Transmit standart RTR frame
-        slcan_frame_t frame = {.isExtended = false, .isRemote = true};
-        return transmit_can_frame(frame, data, channel);
-    }
-    case SLCANCommand::TRANSMIT_EXTENDED_RTR: {
-        // Transmit extended RTR frame
-        slcan_frame_t frame = {.isExtended = true, .isRemote = true};
-        return transmit_can_frame(frame, data, channel);
+        ret = change_custom_bitrate(channel, settings[0], settings[1], settings[2], settings[3]);
+        break;
     }
     case SLCANCommand::GET_STATUS: {
         // Get status
-        snprintf(buf, sizeof(buf), "F%02x\r", FDCAN::status);
+        // snprintf(buf, sizeof(buf), "F%02x\r", FDCAN::status);
         FDCAN::PrintCANStatus();
-        break;
+        // HAL::USB::send_message(buf, strlen(buf), channel);
+        return 0;
     }
     case SLCANCommand::ACCEPTANCE_CODE: {
         // Set acceptance code
-        snprintf(buf, sizeof(buf), "acc\r");
+        // TODO(Asiiapine): Implement
+        ret = 0;
         break;
     }
     case SLCANCommand::ACCEPTANCE_MASK: {
         // Set acceptance mask
-        snprintf(buf, sizeof(buf), "am\r");
+        // TODO(Asiiapine): Implement
+        ret = 0;
         break;
     }
     case SLCANCommand::GET_VERSION: {
         // Get version
-        snprintf(buf, sizeof(buf), "ver\r");
+        // TODO(Asiiapine): Implement
+        ret = 0;
         break;
     }
     case SLCANCommand::SERIAL_NUMBER: {
         // Get serial number
-        snprintf(buf, sizeof(buf), "ser\r");
+        // TODO(Asiiapine): Implement
+        ret = 0;
         break;
     }
     case SLCANCommand::SET_TIMESTAMP_CMD: {
         // Set timestamp
+        ret = 0;
         if (data[1] == '0') {
-            snprintf(buf, sizeof(buf), "ts0\r");
-            timestamping = false;
+            timestamping[channel] = false;
             break;
         }
-        timestamping = true;
-        snprintf(buf, sizeof(buf), "ts1\r");
+        timestamping[channel] = true;
         break;
     }
     default: {
         // Unknown command
-        snprintf(buf, sizeof(buf), "unk\r");
-        memccpy(uint8_buf, buf, 0, sizeof(buf));
-        USB::send_message(uint8_buf, strlen(buf), channel);
+        uint8_buf[0] = CHAR_FAIL;
+        USB::send_message(uint8_buf, 1, channel);
         return -1;
     }
     }
-
-    memccpy(uint8_buf, buf, 0, sizeof(buf));
-    USB::send_message(uint8_buf, strlen(buf), channel);
+    if (ret != 0) {
+        uint8_buf[0] = CHAR_FAIL;
+    } else {
+        uint8_buf[0] = CHAR_SUCCESS;
+    }
+    USB::send_message(uint8_buf, 1, channel);
     return 0;
 }
 
@@ -215,7 +222,7 @@ int8_t SLCAN::send_can_to_usb(fdcan_message_t msg) {
     }
 
     char timestamp_str[5] = {0};
-    if (timestamping)
+    if (timestamping[msg.channel])
         // Format timestamp
         snprintf(timestamp_str, sizeof(timestamp_str), "%04X", static_cast<int>(msg.timestamp));
 

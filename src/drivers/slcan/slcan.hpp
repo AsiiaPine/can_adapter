@@ -12,7 +12,7 @@
 
 enum ENDChar: char {
   CHAR_SUCCESS = '\r',
-  FCHAR_AIL = '\a',
+  CHAR_FAIL = '\a',
 };
 
 enum SLCANCommand: char {
@@ -68,7 +68,7 @@ class SLCAN {
                                         uint8_t time_segment1, uint8_t time_segment2);
     static int8_t transmit_can_frame(slcan_frame_t frame, uint8_t* data, uint8_t channel);
     static int8_t process_slcan_frame(char *data);
-    static bool timestamping;
+    static bool timestamping[HAL::FDCANChannel::NUM_CHANNELS];
 };
 
 #endif /* SLCAN_HPP_ */
