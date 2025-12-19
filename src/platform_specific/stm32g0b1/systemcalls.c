@@ -10,8 +10,7 @@
 
 int _write(int file, char *ptr, int len) {
     (void)file;
-
-    CDC_Transmit_FS((uint8_t *)ptr, len);
+    CDC_Send(0, ptr, len);
 
     return len;
 }
