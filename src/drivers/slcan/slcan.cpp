@@ -9,6 +9,7 @@
 #include "slcan.hpp"
 #include "peripheral/usb/usb.hpp"
 #include "peripheral/fdcan/fdcan.hpp"
+#include "peripheral/led/led.hpp"
 
 using HAL::FDCAN;
 using HAL::FDCANChannel;
@@ -127,7 +128,7 @@ int8_t SLCAN::process_cmd_from_usb(uint8_t channel) {
     case SLCANCommand::GET_STATUS: {
         // Get status
         // snprintf(buf, sizeof(buf), "F%02x\r", FDCAN::status);
-        FDCAN::PrintCANStatus();
+        FDCAN::check_can_bus(channel);
         // HAL::USB::send_message(buf, strlen(buf), channel);
         return 0;
     }
@@ -272,7 +273,9 @@ void SLCAN::spin() {
     process_cmd_from_usb(USB::Channels::USB_1);
 
     fdcan_message_t test_msg = {0};  // Initialize to prevent garbage
-
+    if (FDCAN::status[0] || FDCAN::status[1]) {
+        HAL::LED::set_color(HAL::LEDColor::LED_RED);
+    }
     // Check channel 1
     if (HAL::FDCAN::receive_message(HAL::FDCANChannel::CHANNEL_1, test_msg) == 0) {
         // Validate message before sending

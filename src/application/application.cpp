@@ -17,30 +17,18 @@ HAL::fdcan_message_t test_msg2;
 
 
 __attribute__((noreturn)) void application_entry_point() {
-    // uint32_t last_time = HAL_GetTick();
+    uint32_t last_time = HAL_GetTick();
     HAL::LED::init();
     HAL::WatchDog::init();
     while (true) {
-        // if (HAL_GetTick() - last_time > 1000) {
-        //     // CDC_Transmit_FS_EndPoint((uint8_t*)"A\n", 2, 0);
-        //     // CDC_Transmit_FS_EndPoint((uint8_t*)"B\n", 2, 1);
-        //     // CDC_Send(0, (uint8_t*)"A\n", 2);
-        //     // CDC_Send(1, (uint8_t*)"B\n", 2);
-        //     last_time = HAL_GetTick();
-        // }
-
+        if (HAL_GetTick() - last_time > 1000) {
+            last_time = HAL_GetTick();
+            HAL::LED::toggle(HAL::LEDColor::LED_BLUE);
+        }
         SLCAN::spin();
 
         CDC_TxScheduler();
         // Feed watchdog
         HAL::WatchDog::refresh();
     }
-    // init_board_periphery();
-    // ModuleManager::init();
-
-// while (true) {
-//     ModuleManager::process();
-//     blink_board_led();
-//     HAL::Watchdog::refresh();
-// }
 }

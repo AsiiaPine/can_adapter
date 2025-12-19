@@ -40,7 +40,7 @@ enum FDCANChannel: uint8_t {
 
 class FDCAN {
  public:
-    static uint8_t status;
+    static uint8_t status[2];
     static fdcan_message_t buffer[2][10];
     static int8_t stop(FDCANChannel channel);
     static int8_t start(FDCANChannel channel);
@@ -51,6 +51,7 @@ class FDCAN {
     static int8_t set_custom_bitrate(uint8_t channel, uint8_t time_quantum, uint8_t jump_width,
                                     uint8_t time_segment1, uint8_t time_segment2);
     static void PrintCANStatus(void);
+    static void check_can_bus(uint8_t channel);
 };
 
 };  // namespace HAL
