@@ -10,9 +10,10 @@
 
 using HAL::FDCAN;
 using HAL::fdcan_message_t;
-void FDCAN::set_bitrate(uint32_t bitrate) {
+void FDCAN::set_bitrate(uint8_t channel, uint32_t bitrate) {
     (void)(bitrate);
 }
+
 #define MAX_MESSAGES 10
 fdcan_message_t FDCAN::buffer[2][MAX_MESSAGES] = {{}};
 

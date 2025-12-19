@@ -19,6 +19,7 @@ using HAL::fdcan_message_t;
 
 extern FDCAN_HandleTypeDef hfdcan1;
 extern FDCAN_HandleTypeDef hfdcan2;
+
 #define MAX_MESSAGES 10
 
 uint8_t FDCAN::status = 0;
@@ -32,11 +33,12 @@ MessagesCircularBuffer<fdcan_message_t> FDCAN::messages[2] = {
     MessagesCircularBuffer<fdcan_message_t>(MAX_MESSAGES, FDCAN::buffer[1], TIM16_FDCAN_IT0_IRQn)
 };
 
-void FDCAN::set_bitrate(uint32_t bitrate) {
+void FDCAN::set_bitrate(uint8_t channel, uint32_t bitrate) {
+    UNUSED(channel);
     UNUSED(bitrate);
 }
 
-void FDCAN::set_custom_bitrate(uint8_t time_quantum, uint8_t jump_width,
+void FDCAN::set_custom_bitrate(uint8_t channel, uint8_t time_quantum, uint8_t jump_width,
                                     uint8_t time_segment1, uint8_t time_segment2) {
     // FDCAN::set_custom_bitrate(time_quantum, jump_width, time_segment1, time_segment2);
 
@@ -63,17 +65,17 @@ void FDCAN::start(FDCANChannel channel) {
 }
 
 int8_t FDCAN::receive_message(HAL::FDCANChannel channel, HAL::fdcan_message_t& msg) {
-    if (channel > FDCANChannel::CHANNEL_2) {
+    if (channel >= FDCANChannel::NUM_CHANNELS) {
         return -1;
     }
-    if (FDCAN::messages[static_cast<int>(channel) - 1].pop_message(&msg) < 0) {
+    if (FDCAN::messages[channel].pop_message(&msg) < 0) {
         return -1;
     }
     return 0;
 }
 
 void FDCAN::send_message(fdcan_message_t *msg) {
-    FDCAN_HandleTypeDef *hfdcan = (msg->channel == 1) ? &hfdcan1 : &hfdcan2;
+    FDCAN_HandleTypeDef *hfdcan = (msg->channel == FDCANChannel::CHANNEL_1) ? &hfdcan1 : &hfdcan2;
     FDCAN_TxHeaderTypeDef tx_header;
     tx_header.Identifier = msg->id;
     tx_header.IdType = msg->isExtended ? FDCAN_EXTENDED_ID : FDCAN_STANDARD_ID;
@@ -130,26 +132,12 @@ void push_can_message(uint8_t channel, FDCAN_RxHeaderTypeDef *rx_header, uint8_t
 
     msg.timestamp = HAL_GetTick() % 60000;
     // Only push valid messages
-    HAL::FDCAN::messages[channel - 1].push_message(msg);
-}
-
-static void check_can_bus(FDCAN_HandleTypeDef *hfdcan) {
-    FDCAN_ProtocolStatusTypeDef protocolStatus = {};
-
-    HAL_FDCAN_GetProtocolStatus(hfdcan, &protocolStatus);
-    if (protocolStatus.BusOff) {
-        CLEAR_BIT(hfdcan->Instance->CCCR, FDCAN_CCCR_INIT);
-    }
+    HAL::FDCAN::messages[channel].push_message(msg);
 }
 
 void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs) {
     // Debug: Toggle green LED to indicate interrupt was called
-    HAL_GPIO_TogglePin(INTERNAL_LED_GREEN_GPIO_Port, INTERNAL_LED_GREEN_Pin);
-
-    uint8_t channel = 1;
-    if (hfdcan == &hfdcan2) {
-        channel = 2;
-    }
+    uint8_t channel = hfdcan == &hfdcan1 ? FDCANChannel::CHANNEL_1 : FDCANChannel::CHANNEL_2;
     if (RxFifo0ITs & FDCAN_IT_RX_FIFO0_FULL == RESET) {
         // RX FIFO 0 is full
         FDCAN::status |= HAL::FDCAN_STATUS_BITS::RX_FIFO_FULL;
@@ -163,16 +151,14 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
     if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &rx_header, rx_data) != HAL_OK) {
         return;
     }
+    HAL_GPIO_TogglePin(INTERNAL_LED_GREEN_GPIO_Port, INTERNAL_LED_GREEN_Pin);
     push_can_message(channel, &rx_header, rx_data);
 }
 
 void HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo1ITs) {
     // Debug: Toggle blue LED to indicate interrupt was called
     HAL_GPIO_TogglePin(INTERNAL_LED_BLUE_GPIO_Port, INTERNAL_LED_BLUE_Pin);
-    uint8_t channel = 1;
-    if (hfdcan == &hfdcan2) {
-        channel = 2;
-    }
+    uint8_t channel = hfdcan == &hfdcan1 ? FDCANChannel::CHANNEL_1 : FDCANChannel::CHANNEL_2;
     if (RxFifo1ITs & FDCAN_IT_RX_FIFO1_FULL) {
         // RX FIFO 0 is full
         FDCAN::status |= HAL::FDCAN_STATUS_BITS::RX_FIFO_FULL;
@@ -228,11 +214,7 @@ void HAL_FDCAN_ErrorCallback(FDCAN_HandleTypeDef *hfdcan) {
     }
 
     uint8_t error_msg[19];
-    uint8_t channel = 0;
-    if (hfdcan == &hfdcan1) {
-    } else if (hfdcan == &hfdcan2) {
-        channel = 1;
-    }
+    uint8_t channel = hfdcan == &hfdcan1 ? FDCANChannel::CHANNEL_1 : FDCANChannel::CHANNEL_2;
     snprintf(reinterpret_cast<char*>(error_msg), sizeof(error_msg),
                                 "CAN Error %d\r\n", static_cast<int>(hfdcan->ErrorCode));
     HAL::USB::send_message(error_msg, sizeof(error_msg) - 1, channel);
@@ -317,3 +299,23 @@ void FDCAN::PrintCANStatus(void) {
     printf("  Warning Status: %s\n", (status & FDCAN_PSR_EW) ? "Yes" : "No");
     printf("  Bus Off: %s\n", (status & FDCAN_PSR_BO) ? "Yes" : "No");
 }
+
+// void get_fdcan_status(FDCAN_HandleTypeDef *hfdcan) {
+//     FDCAN_ProtocolStatusTypeDef protocolStatus = {};
+//     HAL_FDCAN_GetProtocolStatus(hfdcan, &protocolStatus);
+//     if (protocolStatus.BusOff) {
+//         CLEAR_BIT(hfdcan->Instance->CCCR, FDCAN_CCCR_CSR);
+//     }
+// }
+
+static void check_can_bus(FDCAN_HandleTypeDef *hfdcan) {
+    FDCAN_ProtocolStatusTypeDef protocolStatus = {};
+
+    HAL_FDCAN_GetProtocolStatus(hfdcan, &protocolStatus);
+    if (protocolStatus.BusOff) {
+        CLEAR_BIT(hfdcan->Instance->CCCR, FDCAN_CCCR_INIT);
+    }
+}
+
+// uint32_t HAL_FDCAN_GetError(FDCAN_HandleTypeDef *hfdcan);
+// HAL_FDCAN_StateTypeDef HAL_FDCAN_GetState(FDCAN_HandleTypeDef *hfdcan);

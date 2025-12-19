@@ -21,7 +21,7 @@ char SLCANCommand_to_char(SLCANCommand cmd) {
     return static_cast<char>(cmd);
 }
 
-int8_t SLCAN::change_bitrate(char char_bitrate) {
+int8_t SLCAN::change_bitrate(uint8_t channel, char char_bitrate) {
     uint32_t bitrate = 0;
     switch (char_bitrate) {
     case SLCANBitrate::BITRATE_1M:
@@ -54,13 +54,13 @@ int8_t SLCAN::change_bitrate(char char_bitrate) {
     default:
         return -1;
     }
-    FDCAN::set_bitrate(bitrate);
+    FDCAN::set_bitrate(channel, bitrate);
     return 0;
 }
 
-int8_t SLCAN::change_custom_bitrate(uint8_t time_quantum, uint8_t jump_width,
+int8_t SLCAN::change_custom_bitrate(uint8_t channel, uint8_t time_quantum, uint8_t jump_width,
                                     uint8_t time_segment1, uint8_t time_segment2) {
-    FDCAN::set_custom_bitrate(time_quantum, jump_width, time_segment1, time_segment2);
+    FDCAN::set_custom_bitrate(channel, time_quantum, jump_width, time_segment1, time_segment2);
     return 0;
 }
 
@@ -74,7 +74,7 @@ int8_t SLCAN::process_cmd_from_usb(uint8_t channel) {
 
     switch (SLCANCommand(data[0])) {
     case SLCANCommand::SETUP_BITRATE_CMD: {
-        return change_bitrate(data[1]);
+        return change_bitrate(channel, data[1]);
     }
     case SLCANCommand::SETUP_CUSTOM_BITRATE_CMD: {
         uint8_t settings[4] = {};
@@ -82,7 +82,7 @@ int8_t SLCAN::process_cmd_from_usb(uint8_t channel) {
         settings[1] = data[2];
         settings[2] = data[3];
         settings[3] = data[4];
-        return change_custom_bitrate(settings[0], settings[1], settings[2], settings[3]);
+        return change_custom_bitrate(channel, settings[0], settings[1], settings[2], settings[3]);
     }
 
     case SLCANCommand::OPEN_CHANNEL: {
@@ -264,20 +264,14 @@ void SLCAN::spin() {
     process_cmd_from_usb(USB::Channels::USB_0);
     process_cmd_from_usb(USB::Channels::USB_1);
 
-    static uint32_t last_time = HAL_GetTick();
-    char buf[] = "SLCAN Idle\r\n";
-
     fdcan_message_t test_msg = {0};  // Initialize to prevent garbage
 
-    // HAL::FDCAN::PrintCANStatus();
     // Check channel 1
     if (HAL::FDCAN::receive_message(HAL::FDCANChannel::CHANNEL_1, test_msg) == 0) {
         // Validate message before sending
         if (test_msg.id != 0 && test_msg.dlc <= 8) {
             send_can_to_usb(test_msg);
         }
-        last_time = HAL_GetTick();
-        return;
     }
 
     // Check channel 2
@@ -286,13 +280,5 @@ void SLCAN::spin() {
         if (test_msg.id != 0 && test_msg.dlc <= 8) {
             send_can_to_usb(test_msg);
         }
-        last_time = HAL_GetTick();
-        return;
     }
-    if (HAL_GetTick() - last_time < 100)
-        return;
-    // Send idle message only if no valid messages were processed
-    HAL::USB::send_message(reinterpret_cast<uint8_t*>(buf), 12, 1);
-    HAL::USB::send_message(reinterpret_cast<uint8_t*>(buf), 12, 2);
-    last_time = HAL_GetTick();
 }

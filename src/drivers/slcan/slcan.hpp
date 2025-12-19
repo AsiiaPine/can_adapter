@@ -63,8 +63,8 @@ class SLCAN {
  private:
     static int8_t send_can_to_usb(HAL::fdcan_message_t msg);
     static int8_t process_cmd_from_usb(uint8_t channel);
-    static int8_t change_bitrate(char bitrate);
-    static int8_t change_custom_bitrate(uint8_t time_quantum, uint8_t jump_width,
+    static int8_t change_bitrate(uint8_t channel, char bitrate);
+    static int8_t change_custom_bitrate(uint8_t channel, uint8_t time_quantum, uint8_t jump_width,
                                         uint8_t time_segment1, uint8_t time_segment2);
     static int8_t transmit_can_frame(slcan_frame_t frame, uint8_t* data, uint8_t channel);
     static int8_t process_slcan_frame(char *data);
