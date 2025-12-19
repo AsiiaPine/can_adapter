@@ -10,7 +10,8 @@
 
 int _write(int file, char *ptr, int len) {
     (void)file;
-    CDC_Send(0, ptr, len);
-
+    uint8_t buf[100];
+    memcpy(buf, ptr, len);
+    CDC_Send(0, buf, len);
     return len;
 }
